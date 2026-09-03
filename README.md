@@ -1,103 +1,41 @@
-# Drive Memo Prototype
+# Drive Memo v2
 
-这个 Prototype 验证四件事：
+## 新功能
+- 记住 Drive File ID
+- 当前浏览器会话内记住 Google access token
+- 停止输入 1.2 秒自动保存
+- 前景页面每 5 秒只检查 Drive metadata
+- version 改变时才下载正文
+- 另一装置修改后自动刷新
+- 本机与云端同时修改时显示差异并要求选择
+- iPhone PWA / 加入主画面
+- 页面切后台时停止轮询，回前景立即检查
+- token 到期时要求重新连接，不把 refresh token 存进前端
 
-1. 浏览器用 Google OAuth 登录
-2. 透过 Google Drive API 读取一个现有 Markdown 文件
-3. 网页用 JavaScript 编辑/呈现该文件
-4. 网页把修改写回同一个 Drive 文件
+## GitHub Pages 升级
+1. 上传/覆盖 index.html、app.js、manifest.webmanifest、sw.js 与三个 icon 文件。
+2. config.js 请填回你原本的 GOOGLE_CLIENT_ID 与 ALLOWED_EMAIL。
+3. 保留：
+   SYNC_INTERVAL_MS: 5000
+   AUTOSAVE_DELAY_MS: 1200
+4. Commit 后等 GitHub Pages 部署。
+5. iPhone Safari 打开网站 → 分享 → 加入主画面。
 
-## A. Google Cloud 设置
+## 登入状态
+纯 GitHub Pages 无后端，不应该把长期 refresh token 放在 localStorage。
+因此 v2 只把短期 access token 放 sessionStorage：
+- 刷新页面通常不用重登
+- 同一浏览器会话通常不用重登
+- token 到期或浏览器结束会话后，点一次「连接 Google」
 
-1. 打开 Google Cloud Console
-2. 建立一个 Project
-3. APIs & Services → Library → 启用 **Google Drive API**
-4. OAuth consent screen：
-   - Prototype 可设为 Testing
-   - 把你自己的 Google 帐号加入 Test users
-5. Credentials → Create Credentials → OAuth client ID
-6. Application type 选 **Web application**
-7. Authorized JavaScript origins 加：
-   - `http://localhost:8080`
-8. 复制 OAuth Client ID
+若未来要真正长期免登录，需要加一个小型 backend 安全保存 refresh token。
 
-## B. 修改 config.js
+## 同步
+每 5 秒只请求一次 metadata；version 没变就不下载正文。
+输入停止 1.2 秒后自动保存，保存前会再确认 Drive version。
+若本机有修改而云端 version 又改变，自动保存暂停并显示冲突。
 
-把：
-
-`PASTE_YOUR_GOOGLE_OAUTH_CLIENT_ID_HERE.apps.googleusercontent.com`
-
-换成你的 Client ID。
-
-把：
-
-`YOUR_GOOGLE_EMAIL@gmail.com`
-
-换成你允许登入的 Google 帐号。
-
-## C. Drive 准备一个 Markdown 文件
-
-例如建立 `prototype.md`：
-
-```md
-# Prototype
-
-## Today
-- Drive is my source of truth
-- Web is only a view
-
-## Pending
-- [ ] AI editing
-- [ ] Topic index
-```
-
-上传到 Google Drive。
-
-从文件分享链接取得 File ID，例如：
-
-`https://drive.google.com/file/d/1AbCdEfGh12345/view`
-
-其中：
-
-`1AbCdEfGh12345`
-
-就是 File ID。
-
-## D. 本机启动
-
-不要直接双击 index.html，因为 OAuth 需要合法 HTTP origin。
-
-在本资料夹运行：
-
-```bash
-python -m http.server 8080
-```
-
-然后浏览器打开：
-
-`http://localhost:8080`
-
-## E. 测试流程
-
-1. Google 登入
-2. 贴 File ID
-3. 按「读取」
-4. 修改 Markdown
-5. 按「写回 Drive」
-6. 回 Google Drive 检查内容是否真的改变
-
-## Prototype 权限说明
-
-为了直接读取你既有 Drive 中、只知道 File ID 的文件，本 Prototype 暂时请求：
-
-`https://www.googleapis.com/auth/drive`
-
-这是较大的 Drive 权限。
-
-正式版建议改成：
-
-- `drive.file`
-- 搭配 Google Picker 让使用者明确挑选档案
-- 或加 Server-side backend 保存 token / 做帐号限制
-
-当前 `ALLOWED_EMAIL` 只是前端 UI 限制，不是正式安全边界。
+冲突时：
+- 使用云端版：本机旧版会先备份到浏览器 localStorage
+- 保留本地：云端旧版先备份，再明确覆盖 Drive
+- 暂不处理：保持冲突状态，自动保存暂停
