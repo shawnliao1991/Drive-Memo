@@ -1,10 +1,10 @@
 (function(global){
 "use strict";
 
-const FORMAT_VERSION=2;
-const CONTENT_MARKER="DRIVE_MEMO_CONTENT_V2";
-const CONTENT_END="DRIVE_MEMO_CONTENT_V2_END -->";
-const CONTENT_RE=/<!-- DRIVE_MEMO_CONTENT_V2\r?\n([\s\S]*?)\r?\nDRIVE_MEMO_CONTENT_V2_END -->/;
+const FORMAT_VERSION=3;
+const CONTENT_MARKER="DRIVE_MEMO_CONTENT_V3";
+const CONTENT_END="DRIVE_MEMO_CONTENT_V3_END -->";
+const CONTENT_RE=/<!-- DRIVE_MEMO_CONTENT_V[23]\r?\n([\s\S]*?)\r?\nDRIVE_MEMO_CONTENT_V[23]_END -->/;
 const DEBUG_MARKER="DRIVE_MEMO_UI_STATE";
 const DEBUG_RE=/<!-- DRIVE_MEMO_UI_STATE\r?\n([\s\S]*?)\r?\n-->/;
 const PRIORITIES=["urgent","today","soon","someday"];
@@ -17,7 +17,7 @@ function localDateKey(date=new Date()){const year=date.getFullYear(),month=Strin
 function shiftDate(dateKey,days){const[y,m,d]=dateKey.split("-").map(Number),date=new Date(y,m-1,d+days,12);return localDateKey(date)}
 function normalizeDebugState(value={}){const priority=["low","normal","high"].includes(value.priority)?value.priority:"normal",stage=["todo","doing","waiting","done"].includes(value.stage)?value.stage:"todo",progress=Math.max(0,Math.min(100,Number(value.progress)||0));return{version:1,checked:Boolean(value.checked),switchOn:Boolean(value.switchOn),priority,stage,progress,note:String(value.note||"").slice(0,80),updatedAt:String(value.updatedAt||"")}}
 function emptyJournal(){return{version:FORMAT_VERSION,createdAt:nowIso(),updatedAt:nowIso(),items:[],bullets:[]}}
-function normalizeItem(item){return{id:String(item.id||""),title:String(item.title||"未命名項目").slice(0,160),details:String(item.details||"").slice(0,12000),createdAt:String(item.createdAt||nowIso()),updatedAt:String(item.updatedAt||item.createdAt||nowIso()),archivedAt:item.archivedAt?String(item.archivedAt):null}}
+function normalizeItem(item){const kind=item.kind==="project"?"project":"task",projectStatus=kind==="project"&&(item.projectStatus==="closed"?"closed":"open");return{id:String(item.id||""),kind,title:String(item.title||"未命名項目").slice(0,160),details:String(item.details||"").slice(0,12000),projectStatus:projectStatus||null,convertedAt:kind==="project"&&item.convertedAt?String(item.convertedAt):null,closedAt:kind==="project"&&item.closedAt?String(item.closedAt):null,createdAt:String(item.createdAt||nowIso()),updatedAt:String(item.updatedAt||item.createdAt||nowIso()),archivedAt:item.archivedAt?String(item.archivedAt):null}}
 function normalizeBullet(bullet){return{id:String(bullet.id||""),itemId:String(bullet.itemId||""),date:/^\d{4}-\d{2}-\d{2}$/.test(bullet.date||"")?bullet.date:localDateKey(),action:String(bullet.action||"").slice(0,500),priority:PRIORITIES.includes(bullet.priority)?bullet.priority:"someday",status:STATUSES.includes(bullet.status)?bullet.status:"todo",createdAt:String(bullet.createdAt||nowIso()),updatedAt:String(bullet.updatedAt||bullet.createdAt||nowIso()),completedAt:bullet.completedAt?String(bullet.completedAt):null,carriedFrom:bullet.carriedFrom?String(bullet.carriedFrom):null,carriedTo:bullet.carriedTo?String(bullet.carriedTo):null,deletedAt:bullet.deletedAt?String(bullet.deletedAt):null}}
 function normalizeJournal(value={}){const items=Array.isArray(value.items)?value.items.map(normalizeItem).filter(item=>item.id):[],itemIds=new Set(items.map(item=>item.id)),bullets=Array.isArray(value.bullets)?value.bullets.map(normalizeBullet).filter(bullet=>bullet.id&&itemIds.has(bullet.itemId)):[];return{version:FORMAT_VERSION,createdAt:String(value.createdAt||nowIso()),updatedAt:String(value.updatedAt||nowIso()),items,bullets}}
 
@@ -45,6 +45,8 @@ function addBullet(markdown,input={}){
 }
 
 function updateBullet(markdown,bulletId,patch={}){return updateJournal(markdown,journal=>{const bullet=journal.bullets.find(value=>value.id===bulletId);if(!bullet)return;const item=journal.items.find(value=>value.id===bullet.itemId),updatedAt=nowIso();if(item){if(patch.title!==undefined)item.title=String(patch.title||"未命名項目").slice(0,160);if(patch.details!==undefined)item.details=String(patch.details||"").slice(0,12000);item.updatedAt=updatedAt}if(patch.action!==undefined)bullet.action=String(patch.action||"").slice(0,500);if(patch.priority!==undefined&&PRIORITIES.includes(patch.priority))bullet.priority=patch.priority;if(patch.date!==undefined&&/^\d{4}-\d{2}-\d{2}$/.test(patch.date))bullet.date=patch.date;bullet.updatedAt=updatedAt})}
+function convertToProject(markdown,bulletId){return updateJournal(markdown,journal=>{const bullet=journal.bullets.find(value=>value.id===bulletId);if(!bullet)return;const item=journal.items.find(value=>value.id===bullet.itemId);if(!item||item.kind==="project")return;const updatedAt=nowIso();item.kind="project";item.projectStatus="open";item.convertedAt=updatedAt;item.closedAt=null;item.updatedAt=updatedAt})}
+function setProjectStatus(markdown,itemId,status){if(!["open","closed"].includes(status))return markdown;return updateJournal(markdown,journal=>{const item=journal.items.find(value=>value.id===itemId&&value.kind==="project");if(!item)return;const updatedAt=nowIso();item.projectStatus=status;item.closedAt=status==="closed"?updatedAt:null;item.updatedAt=updatedAt})}
 function setBulletStatus(markdown,bulletId,status){if(!["todo","done"].includes(status))return markdown;return updateJournal(markdown,journal=>{const bullet=journal.bullets.find(value=>value.id===bulletId);if(!bullet||bullet.deletedAt)return;bullet.status=status;bullet.completedAt=status==="done"?nowIso():null;bullet.updatedAt=nowIso()})}
 function softDeleteBullet(markdown,bulletId){return updateJournal(markdown,journal=>{const bullet=journal.bullets.find(value=>value.id===bulletId);if(bullet){bullet.deletedAt=nowIso();bullet.updatedAt=bullet.deletedAt}})}
 function restoreBullet(markdown,bulletId){return updateJournal(markdown,journal=>{const bullet=journal.bullets.find(value=>value.id===bulletId);if(bullet){bullet.deletedAt=null;bullet.updatedAt=nowIso()}})}
@@ -53,7 +55,7 @@ function carryForward(markdown,bulletIds,targetDate=localDateKey()){
  const selected=new Set(bulletIds);return updateJournal(markdown,journal=>{for(const source of journal.bullets){if(!selected.has(source.id)||source.status!=="todo"||source.deletedAt||source.carriedTo||source.date>=targetDate)continue;const newId=`carry_${source.id}_${targetDate}`;if(journal.bullets.some(value=>value.id===newId)){source.status="migrated";source.carriedTo=newId;continue}const createdAt=nowIso();journal.bullets.push(normalizeBullet({id:newId,itemId:source.itemId,date:targetDate,action:source.action,priority:source.priority,status:"todo",createdAt,updatedAt:createdAt,carriedFrom:source.id}));source.status="migrated";source.carriedTo=newId;source.updatedAt=createdAt}})
 }
 
-function decorate(bullet,itemMap){const item=itemMap.get(bullet.itemId)||normalizeItem({id:bullet.itemId});return{...bullet,title:item.title,details:item.details,itemArchivedAt:item.archivedAt}}
+function decorate(bullet,itemMap){const item=itemMap.get(bullet.itemId)||normalizeItem({id:bullet.itemId});return{...bullet,title:item.title,details:item.details,kind:item.kind,projectStatus:item.projectStatus,itemArchivedAt:item.archivedAt}}
 function chainResolved(bullet,bulletMap){let current=bullet,guard=0;while(current?.carriedTo&&guard++<100)current=bulletMap.get(current.carriedTo);return current?.status==="done"}
 function priorityRank(priority){return PRIORITIES.indexOf(priority)}
 function sortBullets(a,b){return priorityRank(a.priority)-priorityRank(b.priority)||a.createdAt.localeCompare(b.createdAt)}
@@ -74,9 +76,10 @@ function getAgenda(markdown,startDate=localDateKey(),dayCount=8){
  return days
 }
 
-function getBullet(markdown,bulletId){const model=parse(markdown),bullet=model.journal.bullets.find(value=>value.id===bulletId);if(!bullet)return null;const item=model.journal.items.find(value=>value.id===bullet.itemId);return item?{...bullet,title:item.title,details:item.details}:null}
+function getBullet(markdown,bulletId){const model=parse(markdown),bullet=model.journal.bullets.find(value=>value.id===bulletId);if(!bullet)return null;const item=model.journal.items.find(value=>value.id===bullet.itemId);return item?{...bullet,title:item.title,details:item.details,kind:item.kind,projectStatus:item.projectStatus}:null}
 function getItemHistory(markdown,bulletId){const model=parse(markdown),current=model.journal.bullets.find(value=>value.id===bulletId);if(!current)return[];const itemMap=new Map(model.journal.items.map(item=>[item.id,item]));return model.journal.bullets.filter(value=>value.itemId===current.itemId&&!value.deletedAt).map(value=>decorate(value,itemMap)).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt.localeCompare(a.createdAt))}
+function getProjects(markdown){const model=parse(markdown),projects=model.journal.items.filter(item=>item.kind==="project"&&!item.archivedAt).map(item=>{const bullets=model.journal.bullets.filter(bullet=>bullet.itemId===item.id&&!bullet.deletedAt),active=bullets.filter(bullet=>bullet.status==="todo").sort((a,b)=>a.date.localeCompare(b.date)||a.createdAt.localeCompare(b.createdAt)),latest=[...bullets].sort((a,b)=>(b.updatedAt||b.createdAt).localeCompare(a.updatedAt||a.createdAt))[0],current=active[0]||latest||null,lastActivity=[item.updatedAt,...bullets.map(bullet=>bullet.updatedAt||bullet.createdAt)].filter(Boolean).sort().at(-1)||item.createdAt;return{...item,bulletId:current?.id||null,action:current?.action||"尚未安排 Action",date:current?.date||"",priority:current?.priority||"someday",bulletStatus:current?.status||"",lastActivity}});return projects.sort((a,b)=>(a.projectStatus==="closed")-(b.projectStatus==="closed")||b.lastActivity.localeCompare(a.lastActivity))}
 function toViewModel(markdown){const model=parse(markdown);return{formatVersion:model.formatVersion,categories:[{id:"memo",label:"舊版筆記內容",items:[{id:"main",type:"markdown",content:model.legacyMarkdown}]}],debugState:model.debugState}}
 
-global.DriveMemoContent=Object.freeze({FORMAT_VERSION,PRIORITIES,STATUSES,DEFAULT_DEBUG_STATE:Object.freeze({...DEFAULT_DEBUG_STATE}),localDateKey,shiftDate,parse,serialize,updateDebugState,addBullet,updateBullet,setBulletStatus,softDeleteBullet,restoreBullet,carryForward,getViewModel,getAgenda,getBullet,getItemHistory,toViewModel});
+global.DriveMemoContent=Object.freeze({FORMAT_VERSION,PRIORITIES,STATUSES,DEFAULT_DEBUG_STATE:Object.freeze({...DEFAULT_DEBUG_STATE}),localDateKey,shiftDate,parse,serialize,updateDebugState,addBullet,updateBullet,convertToProject,setProjectStatus,setBulletStatus,softDeleteBullet,restoreBullet,carryForward,getViewModel,getAgenda,getBullet,getItemHistory,getProjects,toViewModel});
 })(window);
