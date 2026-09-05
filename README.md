@@ -1,6 +1,11 @@
 # Drive Memo v2
 
 ## 新功能
+- 首頁改為「牛馬日誌」，以每天的 Bullet 整理現在、接下來與完成事項
+- 每顆 Bullet 在展開前就顯示「事情／專案」主標題與「今天的 Action」副標題
+- 支援紅、綠、藍、無色四級重要度，並可新增、編輯、完成、軟刪除與復原
+- 過去未完成事項可半自動順延；同一項目同一天不會重複建立，紅／綠歷史重點會在後續完成後轉灰
+- Sync Debug 已移到獨立頁面，保留原始 Markdown 與六種跨裝置狀態控制
 - 记住 Drive File ID
 - 当前浏览器会话内记住 Google access token
 - 停止输入 1.2 秒自动保存
@@ -17,8 +22,8 @@
 
 ## 三大模組
 - `sync.js`：OAuth、Drive API、自動儲存、版本輪詢與衝突保護
-- `content.js`：Markdown 與互動狀態格式、解析、分類及 UI view model
-- `ui.js`：主畫面、預覽、互動控制與同步 Debug 界面
+- `content.js`：牛馬日誌資料格式、Markdown 相容層、分類、順延規則及 UI view model
+- `ui.js`：牛馬日誌首頁、Bullet 互動與獨立的 Sync Debug 界面
 - `app.js`：只供舊版快取頁面轉接三大模組，不放應用功能
 
 ## GitHub Pages 升级

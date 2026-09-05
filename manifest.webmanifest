@@ -1,6 +1,6 @@
 {
-  "name": "Drive Memo",
-  "short_name": "Memo",
+  "name": "牛馬日誌",
+  "short_name": "牛馬日誌",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
