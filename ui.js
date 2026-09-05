@@ -7,10 +7,8 @@ const els={
  journalNav:byId("journalNav"),debugNav:byId("debugNav"),journalPage:byId("journalPage"),debugPage:byId("debugPage"),
  loginBtn:byId("loginBtn"),logoutBtn:byId("logoutBtn"),openBtn:byId("openBtn"),syncBtn:byId("syncBtn"),
  fileId:byId("fileId"),editor:byId("editor"),preview:byId("preview"),statusText:byId("statusText"),stateDot:byId("stateDot"),
- fileMeta:byId("fileMeta"),dirtyState:byId("dirtyState"),identity:byId("identity"),selectedDateLabel:byId("selectedDateLabel"),selectedDateSub:byId("selectedDateSub"),
- prevDateBtn:byId("prevDateBtn"),nextDateBtn:byId("nextDateBtn"),todayBtn:byId("todayBtn"),addBulletBtn:byId("addBulletBtn"),
- nowList:byId("nowList"),nextList:byId("nextList"),doneList:byId("doneList"),nowCount:byId("nowCount"),nextCount:byId("nextCount"),doneCount:byId("doneCount"),
- timeline:byId("timeline"),rolloverPanel:byId("rolloverPanel"),rolloverSummary:byId("rolloverSummary"),rolloverList:byId("rolloverList"),
+ fileMeta:byId("fileMeta"),dirtyState:byId("dirtyState"),identity:byId("identity"),addBulletBtn:byId("addBulletBtn"),agenda:byId("agenda"),
+ rolloverPanel:byId("rolloverPanel"),rolloverSummary:byId("rolloverSummary"),rolloverList:byId("rolloverList"),
  rolloverSelectedBtn:byId("rolloverSelectedBtn"),rolloverAllBtn:byId("rolloverAllBtn"),bulletDialog:byId("bulletDialog"),bulletForm:byId("bulletForm"),
  bulletDialogTitle:byId("bulletDialogTitle"),bulletId:byId("bulletId"),bulletTitle:byId("bulletTitle"),bulletAction:byId("bulletAction"),bulletDate:byId("bulletDate"),
  bulletPriority:byId("bulletPriority"),bulletDetails:byId("bulletDetails"),bulletHistoryField:byId("bulletHistoryField"),bulletHistory:byId("bulletHistory"),deleteBulletBtn:byId("deleteBulletBtn"),cancelBulletBtn:byId("cancelBulletBtn"),
@@ -18,45 +16,37 @@ const els={
  localConflict:byId("localConflict"),cloudConflict:byId("cloudConflict"),laterBtn:byId("laterBtn"),cloudBtn:byId("cloudBtn"),localBtn:byId("localBtn")
 };
 
-const priorityNames={urgent:"立即處理",today:"今天完成",soon:"這幾天",someday:"慢慢做"};
+const priorityNames={urgent:"紅色・立即處理",today:"綠色・今天完成",soon:"藍色・這幾天",someday:"無色・慢慢做"};
 let selectedDate=Content.localDateKey(),lastDeletedId=null,toastTimer=null,identityValue="";
 
 function escapeHtml(value){return String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[char])}
-function formatDate(dateKey,withYear=false){const[y,m,d]=dateKey.split("-").map(Number),date=new Date(y,m-1,d,12),weekday=new Intl.DateTimeFormat("zh-TW",{weekday:"short"}).format(date);return withYear?`${y} 年 ${m} 月 ${d} 日 ${weekday}`:`${m} 月 ${d} 日 ${weekday}`}
+function formatShortDate(dateKey){const[,m,d]=dateKey.split("-").map(Number);return`${m} 月 ${d} 日`}
 function emptyMessage(text){return`<div class="empty">${escapeHtml(text)}</div>`}
 
-function renderBullet(bullet,{timeline=false}={}){
+function renderBullet(bullet){
  const done=bullet.status==="done",migrated=bullet.status==="migrated",resolved=migrated&&bullet.chainResolved;
  const classes=["bullet",bullet.priority,done?"done":"",resolved?"resolved":""].filter(Boolean).join(" ");
  const status=migrated?`<span class="migrated-tag">${resolved?"已完成":"已順延"}</span>`:`<button class="status-btn ${done?"checked":""}" data-action="toggle" data-id="${escapeHtml(bullet.id)}" aria-label="${done?"標示為未完成":"標示為完成"}">${done?"✓":""}</button>`;
- return`<article class="${classes}" data-id="${escapeHtml(bullet.id)}">${status}<button class="bullet-main" data-action="open" data-id="${escapeHtml(bullet.id)}"><span class="bullet-title">${escapeHtml(bullet.title)}</span><span class="bullet-action">${escapeHtml(bullet.action||"尚未填寫 Action")}</span></button>${timeline&&migrated?"":`<span class="priority-label">${priorityNames[bullet.priority]}</span>`}</article>`
+ return`<article class="${classes}" data-id="${escapeHtml(bullet.id)}">${status}<button class="bullet-main" data-action="open" data-id="${escapeHtml(bullet.id)}"><span class="bullet-title">${escapeHtml(bullet.title)}</span><span class="bullet-action">${escapeHtml(bullet.action||"尚未填寫 Action")}</span></button>${migrated?"":`<span class="priority-label">${priorityNames[bullet.priority]}</span>`}</article>`
 }
 
-function renderList(element,bullets,emptyText){element.innerHTML=bullets.length?bullets.map(bullet=>renderBullet(bullet)).join(""):emptyMessage(emptyText)}
+function renderList(bullets,emptyText){return bullets.length?bullets.map(bullet=>renderBullet(bullet)).join(""):emptyMessage(emptyText)}
 
 function renderRollover(candidates){
  const visible=selectedDate===Content.localDateKey()&&candidates.length>0;
  els.rolloverPanel.classList.toggle("hidden",!visible);
  if(!visible)return;
  els.rolloverSummary.textContent=`共有 ${candidates.length} 件之前未完成的事，可建立今天的新 Bullet。`;
- els.rolloverList.innerHTML=candidates.map(bullet=>`<label class="rollover-row"><input type="checkbox" value="${escapeHtml(bullet.id)}" checked><span><strong>${escapeHtml(bullet.title)}</strong><span class="bullet-action">${escapeHtml(bullet.action)}</span></span><small class="muted">${escapeHtml(bullet.date)}</small></label>`).join("");
+ els.rolloverList.innerHTML=candidates.map(bullet=>`<label class="rollover-row"><input type="checkbox" value="${escapeHtml(bullet.id)}" checked><span><strong>${escapeHtml(bullet.title)}</strong><span class="bullet-action">${escapeHtml(bullet.action)}</span></span></label>`).join("");
 }
 
-function renderTimeline(days){
- if(!days.length){els.timeline.innerHTML=emptyMessage("完成或順延後，這裡會留下每天的軌跡。");return}
- els.timeline.innerHTML=days.map(day=>`<details class="day" ${day.date===selectedDate?"open":""}><summary>${escapeHtml(formatDate(day.date,true))} · ${day.bullets.length}</summary><div class="day-items">${day.bullets.map(bullet=>renderBullet(bullet,{timeline:true})).join("")}</div></details>`).join("");
+function renderAgenda(days){
+ els.agenda.innerHTML=days.map((day,index)=>{const dayName=index===0?"今天":index===1?"明天":new Intl.DateTimeFormat("zh-TW",{weekday:"long"}).format(new Date(`${day.date}T12:00:00`)),dayClass=index===0?"today-day":index===1?"tomorrow-day":"",doneSection=day.done.length?`<details class="agenda-section agenda-done" ${index===0?"open":""}><summary class="agenda-section-head"><h3>Done</h3><span class="count">${day.done.length}</span></summary><div class="bullet-list">${renderList(day.done,"尚未完成項目")}</div></details>`:"";return`<section class="panel agenda-day ${dayClass}" data-date="${day.date}"><header class="agenda-date"><h2>${dayName}</h2><time>${escapeHtml(formatShortDate(day.date))}</time></header><div class="agenda-section"><div class="agenda-section-head"><h3>Todo</h3><span class="count">${day.todo.length}</span></div><div class="bullet-list">${renderList(day.todo,index===0?"今天沒有待辦事項。":"這天尚未安排待辦事項。")}</div></div>${doneSection}</section>`}).join("")
 }
 
 function renderJournal(){
- const view=Content.getViewModel(els.editor.value,selectedDate),today=Content.localDateKey();
- els.selectedDateLabel.textContent=formatDate(selectedDate,true);
- els.selectedDateSub.textContent=selectedDate===today?"今天":selectedDate<today?"過去":"未來";
- els.todayBtn.disabled=selectedDate===today;
- renderList(els.nowList,view.now,"這一天沒有需要立刻處理的事。");
- renderList(els.nextList,view.next,"這一天暫時沒有排在後面的事。");
- renderList(els.doneList,view.done,"完成一件事後，會收進這裡。");
- els.nowCount.textContent=view.now.length;els.nextCount.textContent=view.next.length;els.doneCount.textContent=view.done.length;
- renderRollover(view.carryCandidates);renderTimeline(view.timeline);
+ selectedDate=Content.localDateKey();const view=Content.getViewModel(els.editor.value,selectedDate);
+ renderRollover(view.carryCandidates);renderAgenda(Content.getAgenda(els.editor.value,selectedDate,8));
 }
 
 function renderDebug(){
@@ -105,7 +95,7 @@ const sync=global.DriveMemoSync.create({
 });
 
 function bindEvents(){
- addEventListener("hashchange",route);els.prevDateBtn.addEventListener("click",()=>{selectedDate=Content.shiftDate(selectedDate,-1);renderJournal()});els.nextDateBtn.addEventListener("click",()=>{selectedDate=Content.shiftDate(selectedDate,1);renderJournal()});els.todayBtn.addEventListener("click",()=>{selectedDate=Content.localDateKey();renderJournal()});
+ addEventListener("hashchange",route);
  els.addBulletBtn.addEventListener("click",()=>openBulletDialog());els.journalPage.addEventListener("click",handleJournalClick);els.rolloverSelectedBtn.addEventListener("click",()=>carrySelected(false));els.rolloverAllBtn.addEventListener("click",()=>carrySelected(true));
  els.cancelBulletBtn.addEventListener("click",closeBulletDialog);els.bulletForm.addEventListener("submit",event=>{event.preventDefault();const data={title:els.bulletTitle.value.trim(),action:els.bulletAction.value.trim(),date:els.bulletDate.value,priority:els.bulletPriority.value,details:els.bulletDetails.value.trim()};if(!data.title||!data.action)return;const id=els.bulletId.value;mutateContent(markdown=>id?Content.updateBullet(markdown,id,data):Content.addBullet(markdown,data).markdown);closeBulletDialog()});
  els.deleteBulletBtn.addEventListener("click",()=>{const id=els.bulletId.value,title=els.bulletTitle.value.trim()||"Bullet";if(!id)return;mutateContent(markdown=>Content.softDeleteBullet(markdown,id));closeBulletDialog();showToast(`已刪除「${title}」`,id)});els.undoDeleteBtn.addEventListener("click",()=>{if(!lastDeletedId)return;mutateContent(markdown=>Content.restoreBullet(markdown,lastDeletedId));lastDeletedId=null;els.toast.classList.add("hidden")});

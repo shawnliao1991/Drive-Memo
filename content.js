@@ -68,9 +68,15 @@ function getViewModel(markdown,selectedDate=localDateKey()){
  return{formatVersion:FORMAT_VERSION,hasJournal:model.hasJournal,legacyMarkdown:model.legacyMarkdown,debugState:model.debugState,selectedDate,now:todo.filter(bullet=>["urgent","today"].includes(bullet.priority)),next:todo.filter(bullet=>["soon","someday"].includes(bullet.priority)),done,timeline,carryCandidates}
 }
 
+function getAgenda(markdown,startDate=localDateKey(),dayCount=8){
+ const model=parse(markdown),journal=model.journal,itemMap=new Map(journal.items.map(item=>[item.id,item])),count=Math.max(2,Math.min(31,Number(dayCount)||8)),days=[];
+ for(let index=0;index<count;index++){const date=shiftDate(startDate,index),bullets=journal.bullets.filter(value=>!value.deletedAt&&value.date===date&&value.status!=="migrated").map(value=>decorate(value,itemMap)),todo=bullets.filter(value=>value.status==="todo").sort(sortBullets),done=bullets.filter(value=>value.status==="done").sort((a,b)=>(b.completedAt||"").localeCompare(a.completedAt||""));days.push({date,todo,done})}
+ return days
+}
+
 function getBullet(markdown,bulletId){const model=parse(markdown),bullet=model.journal.bullets.find(value=>value.id===bulletId);if(!bullet)return null;const item=model.journal.items.find(value=>value.id===bullet.itemId);return item?{...bullet,title:item.title,details:item.details}:null}
 function getItemHistory(markdown,bulletId){const model=parse(markdown),current=model.journal.bullets.find(value=>value.id===bulletId);if(!current)return[];const itemMap=new Map(model.journal.items.map(item=>[item.id,item]));return model.journal.bullets.filter(value=>value.itemId===current.itemId&&!value.deletedAt).map(value=>decorate(value,itemMap)).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt.localeCompare(a.createdAt))}
 function toViewModel(markdown){const model=parse(markdown);return{formatVersion:model.formatVersion,categories:[{id:"memo",label:"舊版筆記內容",items:[{id:"main",type:"markdown",content:model.legacyMarkdown}]}],debugState:model.debugState}}
 
-global.DriveMemoContent=Object.freeze({FORMAT_VERSION,PRIORITIES,STATUSES,DEFAULT_DEBUG_STATE:Object.freeze({...DEFAULT_DEBUG_STATE}),localDateKey,shiftDate,parse,serialize,updateDebugState,addBullet,updateBullet,setBulletStatus,softDeleteBullet,restoreBullet,carryForward,getViewModel,getBullet,getItemHistory,toViewModel});
+global.DriveMemoContent=Object.freeze({FORMAT_VERSION,PRIORITIES,STATUSES,DEFAULT_DEBUG_STATE:Object.freeze({...DEFAULT_DEBUG_STATE}),localDateKey,shiftDate,parse,serialize,updateDebugState,addBullet,updateBullet,setBulletStatus,softDeleteBullet,restoreBullet,carryForward,getViewModel,getAgenda,getBullet,getItemHistory,toViewModel});
 })(window);
