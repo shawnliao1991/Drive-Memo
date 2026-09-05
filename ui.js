@@ -16,11 +16,11 @@ const els={
  localConflict:byId("localConflict"),cloudConflict:byId("cloudConflict"),laterBtn:byId("laterBtn"),cloudBtn:byId("cloudBtn"),localBtn:byId("localBtn")
 };
 
-const priorityNames={urgent:"紅色・立即處理",today:"綠色・今天完成",soon:"藍色・這幾天",someday:"無色・慢慢做"};
+const priorityNames={urgent:"立即處理",today:"今天完成",soon:"這幾天",someday:"慢慢做"};
 let selectedDate=Content.localDateKey(),lastDeletedId=null,toastTimer=null,identityValue="";
 
 function escapeHtml(value){return String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[char])}
-function formatShortDate(dateKey){const[,m,d]=dateKey.split("-").map(Number);return`${m} 月 ${d} 日`}
+function agendaDateParts(dateKey,index){const[,month,day]=dateKey.split("-").map(Number),weekday="日一二三四五六"[new Date(`${dateKey}T12:00:00`).getDay()],relative=index===0?"今天":index===1?"明天":index===2?"後天":"";return{label:`${month}月${day}日`,weekday,relative,weekend:weekday==="六"||weekday==="日"}}
 function emptyMessage(text){return`<div class="empty">${escapeHtml(text)}</div>`}
 
 function renderBullet(bullet){
@@ -41,7 +41,7 @@ function renderRollover(candidates){
 }
 
 function renderAgenda(days){
- els.agenda.innerHTML=days.map((day,index)=>{const dayName=index===0?"今天":index===1?"明天":new Intl.DateTimeFormat("zh-TW",{weekday:"long"}).format(new Date(`${day.date}T12:00:00`)),dayClass=index===0?"today-day":index===1?"tomorrow-day":"",doneSection=day.done.length?`<details class="agenda-section agenda-done" ${index===0?"open":""}><summary class="agenda-section-head"><h3>Done</h3><span class="count">${day.done.length}</span></summary><div class="bullet-list">${renderList(day.done,"尚未完成項目")}</div></details>`:"";return`<section class="panel agenda-day ${dayClass}" data-date="${day.date}"><header class="agenda-date"><h2>${dayName}</h2><time>${escapeHtml(formatShortDate(day.date))}</time></header><div class="agenda-section"><div class="agenda-section-head"><h3>Todo</h3><span class="count">${day.todo.length}</span></div><div class="bullet-list">${renderList(day.todo,index===0?"今天沒有待辦事項。":"這天尚未安排待辦事項。")}</div></div>${doneSection}</section>`}).join("")
+ els.agenda.innerHTML=days.map((day,index)=>{const date=agendaDateParts(day.date,index),dayClass=[index===0?"today-day":"",index===1?"tomorrow-day":"",date.weekend?"weekend":""].filter(Boolean).join(" "),doneSection=day.done.length?`<details class="agenda-section agenda-done" ${index===0?"open":""}><summary class="agenda-section-head"><h3>Done</h3><span class="count">${day.done.length}</span></summary><div class="bullet-list">${renderList(day.done,"尚未完成項目")}</div></details>`:"";return`<section class="panel agenda-day ${dayClass}" data-date="${day.date}"><header class="agenda-date"><time datetime="${day.date}"><span>${date.label}</span><span>（${date.weekday}）</span>${date.relative?`<strong>${date.relative}</strong>`:""}</time></header><div class="agenda-section"><div class="bullet-list">${renderList(day.todo,index===0?"今天沒有待辦事項。":"這天尚未安排待辦事項。")}</div></div>${doneSection}</section>`}).join("")
 }
 
 function renderJournal(){
