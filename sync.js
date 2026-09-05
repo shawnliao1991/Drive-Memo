@@ -27,6 +27,18 @@ function create(options={}){
  async function apiJson(url,fetchOptions={}){const response=await apiFetch(url,fetchOptions);if(!response.ok){const text=await response.text();throw new Error(`${response.status} ${text.slice(0,250)}`)}return response.json()}
  async function fetchMetadata(id){return apiJson(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?fields=id,name,version,modifiedTime,size`)}
  async function fetchContent(id){const response=await apiFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media`);if(!response.ok){const text=await response.text();throw new Error(`${response.status} ${text.slice(0,250)}`)}return response.text()}
+ function driveQueryValue(value){return String(value||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'")}
+ async function ensureProjectFolder(projectId,projectTitle){
+  const query=`mimeType='application/vnd.google-apps.folder' and trashed=false and appProperties has { key='driveMemoProjectId' and value='${driveQueryValue(projectId)}' }`,params=new URLSearchParams({q:query,spaces:"drive",fields:"files(id,name)",pageSize:"10"}),result=await apiJson(`https://www.googleapis.com/drive/v3/files?${params}`),folder=result.files?.[0],name=String(projectTitle||"未命名專案").slice(0,160);
+  if(folder){if(folder.name!==name)await apiJson(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(folder.id)}?fields=id,name`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({name})});return folder.id}
+  const created=await apiJson("https://www.googleapis.com/drive/v3/files?fields=id,name",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,mimeType:"application/vnd.google-apps.folder",appProperties:{driveMemoProjectId:String(projectId),driveMemoType:"project-images"}})});return created.id
+ }
+ async function uploadProjectImage({file,projectId,projectTitle}={}){
+  if(!(file instanceof Blob)||!String(file.type||"").startsWith("image/"))throw new Error("請選擇圖片檔案");if(file.size>25*1024*1024)throw new Error("圖片不可超過 25 MB");if(!projectId)throw new Error("找不到專案資料");
+  const folderId=await ensureProjectFolder(projectId,projectTitle),boundary=`drive_memo_${Date.now()}_${Math.random().toString(36).slice(2)}`,metadata={name:String(file.name||`image-${Date.now()}`).slice(0,240),parents:[folderId],appProperties:{driveMemoProjectId:String(projectId),driveMemoType:"project-image"}},body=new Blob([`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`,JSON.stringify(metadata),`\r\n--${boundary}\r\nContent-Type: ${file.type}\r\n\r\n`,file,`\r\n--${boundary}--`]);
+  const uploaded=await apiJson("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,webViewLink,thumbnailLink",{method:"POST",headers:{"Content-Type":`multipart/related; boundary=${boundary}`},body});return{...uploaded,folderId,url:uploaded.webViewLink||`https://drive.google.com/file/d/${uploaded.id}/view`}
+ }
+ async function fetchDriveImage(fileId){const response=await apiFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`);if(!response.ok){const text=await response.text();throw new Error(`${response.status} ${text.slice(0,250)}`)}return response.blob()}
  function updateMeta(meta){currentMeta=meta;baseVersion=String(meta.version??"");onMeta(meta)}
 
  async function initAuth(){
@@ -80,7 +92,7 @@ function create(options={}){
  function getDebugSnapshot(){return{baseVersion,baseContent,currentMeta,localDirty,saving,saveQueued,conflictActive}}
  async function initialize(){const restored=restoreSession();await initAuth();if(restored){setStatus("已恢復目前瀏覽器工作階段","ok");if(getFileId())await openCurrentFile()}}
 
- return Object.freeze({initialize,requestLogin,logout,openCurrentFile,syncCheck,localContentChanged,fileIdChanged,resolveUseCloud,resolveKeepLocal,resolveLater,reportStatus,getDebugSnapshot});
+ return Object.freeze({initialize,requestLogin,logout,openCurrentFile,syncCheck,localContentChanged,fileIdChanged,resolveUseCloud,resolveKeepLocal,resolveLater,reportStatus,getDebugSnapshot,uploadProjectImage,fetchDriveImage});
 }
 
 global.DriveMemoSync=Object.freeze({create});
