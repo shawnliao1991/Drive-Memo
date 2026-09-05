@@ -6,7 +6,8 @@
 - 專案本身只有名稱、專案內容與狀態；日期和重要度只屬於 Action
 - 介面採用接近 VS Code 的深色主題，讓日誌與專案管理維持一致視覺
 - 專案頁會依日期條列全部 Actions，並顯示階層式專案細節
-- 專案內容採所見即所得的區塊式筆記，可直接編輯、展開／收合條列、調整階層、粗體、文字大小與顏色
+- 專案內容與一般 Action 細節共用逐行條列編輯器：Enter 新增條列、Tab 縮排、Shift+Tab 退階，可展開／收合並調整粗體、文字大小與七種主題色
+- 每天右上角的「＋」會以當天日期新增 Action；同步資訊顯示雲端修改日期與時間（精確到秒）
 - 引用圖片會上傳至以專案命名的 Google Drive 資料夾；指向連結可預覽並開啟大圖
 - 支援紅、綠、藍、無色四級重要度按鈕，並可新增、編輯、完成、軟刪除與復原
 - Action 日期使用週六、週日紅字的月曆選擇器
@@ -31,10 +32,11 @@
 - `sync.js`：OAuth、Drive API、自動儲存、版本輪詢與衝突保護
 - `content.js`：牛馬日誌資料格式、Markdown 相容層、分類、順延規則及 UI view model
 - `ui.js`：牛馬日誌首頁、Action／專案互動與獨立的 Sync Debug 界面
+- `outline.js`：一般 Action 與專案共用的階層條列編輯器
 - `app.js`：只供舊版快取頁面轉接三大模組，不放應用功能
 
 ## GitHub Pages 升级
-1. 上傳／覆蓋 index.html、app.js、sync.js、content.js、ui.js、manifest.webmanifest、sw.js 與三個 icon 檔案。
+1. 上傳／覆蓋 index.html、app.js、sync.js、content.js、outline.js、ui.js、manifest.webmanifest、sw.js 與三個 icon 檔案。
 2. config.js 请填回你原本的 GOOGLE_CLIENT_ID 与 ALLOWED_EMAIL。
 3. 保留：
    SYNC_INTERVAL_MS: 5000
