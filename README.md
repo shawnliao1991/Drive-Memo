@@ -11,6 +11,8 @@
 - iPhone PWA / 加入主画面
 - 页面切后台时停止轮询，回前景立即检查
 - token 到期时要求重新连接，不把 refresh token 存进前端
+- 「呈現」區提供 6 種可操作狀態：Checkbox、切換開關、單選、下拉選單、滑桿與短文字
+- 互動狀態會寫入 Markdown 末端的 `DRIVE_MEMO_UI_STATE` 隱藏區塊，沿用 Drive 自動儲存與跨裝置同步
 
 ## GitHub Pages 升级
 1. 上传/覆盖 index.html、app.js、manifest.webmanifest、sw.js 与三个 icon 文件。

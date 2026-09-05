@@ -25,11 +25,20 @@ button:disabled{opacity:.45;cursor:not-allowed}.status{display:flex;gap:12px;ali
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px} textarea{width:100%;min-height:62vh;border:1px solid #bbb;border-radius:10px;padding:12px;line-height:1.55;resize:vertical}
 #preview{min-height:62vh;border:1px solid #ddd;border-radius:10px;padding:18px;overflow:auto}#preview img{max-width:100%}#preview pre{overflow:auto;background:#f3f4f6;padding:10px;border-radius:8px}
 #preview code{background:#f3f4f6;padding:2px 4px;border-radius:4px}.muted{color:#666;font-size:13px}
+.state-lab{margin:0 0 22px;padding:16px;border:1px solid #cfd5df;border-radius:12px;background:linear-gradient(145deg,#f8fafc,#fff)}
+.state-lab-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}.state-lab h4{margin:0 0 4px;font-size:17px}.state-lab p{margin:0}
+.state-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.state-field{min-width:0;padding:12px;border:1px solid #e1e5ea;border-radius:10px;background:#fff}.state-field>label,.state-label{display:block;margin-bottom:8px;font-size:13px;font-weight:650;color:#3f4650}
+.state-field input[type="text"],.state-field select{width:100%;min-width:0;padding:9px 10px;border:1px solid #aeb6c2;border-radius:8px;background:#fff}
+.state-check{display:flex;align-items:center;gap:9px;min-height:38px}.state-check input{flex:0 0 auto;min-width:0;width:19px;height:19px}.state-check label{cursor:pointer}
+.state-field>.state-switch{position:relative;display:inline-flex;align-items:center;gap:10px;margin-bottom:0;cursor:pointer}.state-switch input{position:absolute;opacity:0;pointer-events:none;min-width:0;width:1px;height:1px}.state-switch-track{flex:0 0 46px;width:46px;height:26px;padding:3px;border-radius:99px;background:#aeb6c2;transition:.18s}.state-switch-track::after{content:"";display:block;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.28);transition:.18s}.state-switch input:checked+.state-switch-track{background:#2563eb}.state-switch input:checked+.state-switch-track::after{transform:translateX(20px)}
+.state-options{display:flex;gap:6px;flex-wrap:wrap}.state-options input{position:absolute;opacity:0;pointer-events:none;min-width:0;width:1px;height:1px}.state-options label{padding:7px 10px;border:1px solid #aeb6c2;border-radius:8px;cursor:pointer;font-size:13px}.state-options input:checked+label{background:#17191c;color:#fff;border-color:#17191c}
+.state-range{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}.state-range input{min-width:0;width:100%;padding:0}.state-range output{min-width:45px;text-align:right;font-variant-numeric:tabular-nums;font-weight:650}
+.state-sync-badge{white-space:nowrap;padding:5px 8px;border-radius:99px;background:#e9f7ef;color:#146c43;font-size:12px;font-weight:650}
 dialog{width:min(980px,95vw);max-height:90vh;border:0;border-radius:14px;padding:0;box-shadow:0 20px 60px rgba(0,0,0,.3)}dialog::backdrop{background:rgba(0,0,0,.45)}
 .modal-head{padding:14px 16px;border-bottom:1px solid #ddd}.modal-body{padding:14px 16px;overflow:auto;max-height:65vh}.modal-actions{padding:14px 16px;border-top:1px solid #ddd;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 .diff{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.45;white-space:pre-wrap;word-break:break-word}.diff-add{background:#e9f7ef}.diff-del{background:#fdecec;text-decoration:line-through}.diff-same{color:#666}
 .diff-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.diff-pane{border:1px solid #ddd;border-radius:8px;padding:10px;max-height:260px;overflow:auto;white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
-@media(max-width:800px){.grid{grid-template-columns:1fr}textarea,#preview{min-height:45vh}.diff-grid{grid-template-columns:1fr}input{min-width:180px}}
+@media(max-width:800px){.grid{grid-template-columns:1fr}textarea,#preview{min-height:45vh}.diff-grid,.state-grid{grid-template-columns:1fr}input{min-width:180px}.state-lab-head{display:block}.state-sync-badge{display:inline-block;margin-top:10px}}
 </style>
 </head>
 <body>

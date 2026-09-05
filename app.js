@@ -3,11 +3,44 @@ let baseVersion=null,baseContent="",currentMeta=null,localDirty=false,saving=fal
 const $=id=>document.getElementById(id),cfg=window.APP_CONFIG||{};
 const loginBtn=$("loginBtn"),logoutBtn=$("logoutBtn"),openBtn=$("openBtn"),syncBtn=$("syncBtn"),fileIdEl=$("fileId"),editor=$("editor"),preview=$("preview"),statusText=$("statusText"),stateDot=$("stateDot"),fileMeta=$("fileMeta"),dirtyState=$("dirtyState"),identity=$("identity"),conflictDialog=$("conflictDialog"),diffView=$("diffView"),localConflict=$("localConflict"),cloudConflict=$("cloudConflict");
 const SYNC_INTERVAL=cfg.SYNC_INTERVAL_MS||5000,AUTOSAVE_DELAY=cfg.AUTOSAVE_DELAY_MS||1200;
+const UI_STATE_MARKER="DRIVE_MEMO_UI_STATE";
+const UI_STATE_RE=/<!-- DRIVE_MEMO_UI_STATE\r?\n([\s\S]*?)\r?\n-->/;
+const DEFAULT_UI_STATE={version:1,checked:false,switchOn:false,priority:"normal",stage:"todo",progress:25,note:"",updatedAt:""};
 
 function setStatus(t,k=""){statusText.textContent=t;stateDot.className=`dot ${k}`}
 function setDirty(v){localDirty=v;dirtyState.textContent=v?"● 本机有未同步修改":""}
 function escapeHtml(s){return(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
-function renderPreview(){const t=editor.value||"";preview.innerHTML=window.marked?marked.parse(t):`<pre>${escapeHtml(t)}</pre>`}
+function normalizeUiState(value={}){
+ const priority=["low","normal","high"].includes(value.priority)?value.priority:"normal";
+ const stage=["todo","doing","waiting","done"].includes(value.stage)?value.stage:"todo";
+ const progress=Math.max(0,Math.min(100,Number(value.progress)||0));
+ return{version:1,checked:Boolean(value.checked),switchOn:Boolean(value.switchOn),priority,stage,progress,note:String(value.note||"").slice(0,80),updatedAt:String(value.updatedAt||"")}
+}
+function readUiState(markdown=editor.value){
+ const match=String(markdown||"").match(UI_STATE_RE);if(!match)return{...DEFAULT_UI_STATE};
+ try{return normalizeUiState(JSON.parse(match[1]))}catch(e){console.warn("互動狀態資料無法解析",e);return{...DEFAULT_UI_STATE}}
+}
+function withoutUiState(markdown){return String(markdown||"").replace(UI_STATE_RE,"").trimEnd()}
+function statePanelHtml(s){
+ const updated=s.updatedAt?` · ${escapeHtml(new Date(s.updatedAt).toLocaleString())}`:"";
+ return `<section class="state-lab" aria-label="跨裝置狀態測試">
+  <div class="state-lab-head"><div><h4>跨裝置狀態測試</h4><p class="muted">操作後會自動儲存到同一份 Drive 文件${updated}</p></div><span class="state-sync-badge">共 6 種控制項</span></div>
+  <div class="state-grid">
+   <div class="state-field"><span class="state-label">1. Checkbox</span><div class="state-check"><input id="uiStateChecked" data-state-key="checked" type="checkbox" ${s.checked?"checked":""}><label for="uiStateChecked">這件事已完成</label></div></div>
+   <div class="state-field"><span class="state-label">2. 切換開關</span><label class="state-switch"><input data-state-key="switchOn" type="checkbox" ${s.switchOn?"checked":""}><span class="state-switch-track" aria-hidden="true"></span><span>${s.switchOn?"已開啟":"已關閉"}</span></label></div>
+   <fieldset class="state-field" style="margin:0"><legend class="state-label">3. 單選狀態</legend><div class="state-options"><input id="priorityLow" data-state-key="priority" type="radio" name="uiPriority" value="low" ${s.priority==="low"?"checked":""}><label for="priorityLow">低</label><input id="priorityNormal" data-state-key="priority" type="radio" name="uiPriority" value="normal" ${s.priority==="normal"?"checked":""}><label for="priorityNormal">普通</label><input id="priorityHigh" data-state-key="priority" type="radio" name="uiPriority" value="high" ${s.priority==="high"?"checked":""}><label for="priorityHigh">高</label></div></fieldset>
+   <div class="state-field"><label for="uiStateStage">4. 下拉階段</label><select id="uiStateStage" data-state-key="stage"><option value="todo" ${s.stage==="todo"?"selected":""}>待處理</option><option value="doing" ${s.stage==="doing"?"selected":""}>進行中</option><option value="waiting" ${s.stage==="waiting"?"selected":""}>等待中</option><option value="done" ${s.stage==="done"?"selected":""}>已完成</option></select></div>
+   <div class="state-field"><label for="uiStateProgress">5. 數值滑桿</label><div class="state-range"><input id="uiStateProgress" data-state-key="progress" type="range" min="0" max="100" step="5" value="${s.progress}"><output id="uiStateProgressValue">${s.progress}%</output></div></div>
+   <div class="state-field"><label for="uiStateNote">6. 短文字狀態</label><input id="uiStateNote" data-state-key="note" type="text" maxlength="80" value="${escapeHtml(s.note)}" placeholder="例如：等 Shawn 確認"></div>
+  </div>
+ </section>`
+}
+function renderPreview(){const t=editor.value||"",s=readUiState(t),body=withoutUiState(t);preview.innerHTML=statePanelHtml(s)+(window.marked?marked.parse(body):`<pre>${escapeHtml(body)}</pre>`)}
+function writeUiState(patch){
+ const state=normalizeUiState({...readUiState(),...patch,updatedAt:new Date().toISOString()});
+ const body=withoutUiState(editor.value),block=`<!-- ${UI_STATE_MARKER}\n${JSON.stringify(state,null,2)}\n-->`;
+ editor.value=body?`${body}\n\n${block}`:block;renderPreview();if(conflictActive)return;setDirty(editor.value!==baseContent);if(localDirty)scheduleAutosave()
+}
 function getFileId(){return fileIdEl.value.trim()}
 function saveFileId(){const id=getFileId();if(id)localStorage.setItem("driveMemoFileId",id)}
 function accessTokenValid(){return accessToken&&tokenExpiresAt>Date.now()+15000}
@@ -103,6 +136,11 @@ logoutBtn.addEventListener("click",()=>{if(accessToken&&window.google?.accounts?
 openBtn.addEventListener("click",openCurrentFile);syncBtn.addEventListener("click",syncCheck);
 fileIdEl.addEventListener("change",()=>{saveFileId();baseVersion=null;baseContent="";setDirty(false);if(accessTokenValid())openCurrentFile()});
 editor.addEventListener("input",()=>{renderPreview();if(conflictActive)return;setDirty(editor.value!==baseContent);if(localDirty)scheduleAutosave()});
+preview.addEventListener("input",e=>{if(e.target?.dataset?.stateKey==="progress")$("uiStateProgressValue").textContent=`${e.target.value}%`});
+preview.addEventListener("change",e=>{
+ const el=e.target,key=el?.dataset?.stateKey;if(!key)return;
+ let value=el.value;if(el.type==="checkbox")value=el.checked;if(el.type==="range")value=Number(el.value);writeUiState({[key]:value})
+});
 $("cloudBtn").addEventListener("click",resolveUseCloud);$("localBtn").addEventListener("click",resolveKeepLocal);$("laterBtn").addEventListener("click",resolveLater);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)syncCheck()});window.addEventListener("focus",syncCheck);
 window.addEventListener("online",()=>{setStatus("网络恢复，检查同步…","sync");syncCheck()});window.addEventListener("offline",()=>setStatus("目前离线；修改会留在本机，联网后再同步","err"));
