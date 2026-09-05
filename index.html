@@ -42,25 +42,27 @@ dialog{width:min(980px,95vw);max-height:90vh;border:0;border-radius:14px;padding
 </style>
 </head>
 <body>
-<header><strong>Drive Memo v2</strong><span id="identity" class="muted"></span><button id="loginBtn" class="primary">连接 Google</button><button id="logoutBtn" disabled>登出</button></header>
+<header><strong>Drive Memo v2</strong><span id="identity" class="muted"></span><button id="loginBtn" class="primary">連接 Google</button><button id="logoutBtn" disabled>登出</button></header>
 <main>
 <section class="card">
-<div class="row"><label for="fileId">Drive File ID</label><input id="fileId" placeholder="第一次贴上，之后会自动记住"><button id="openBtn" disabled>打开</button><button id="syncBtn" disabled>立即同步</button></div>
-<div class="status"><span><span id="stateDot" class="dot"></span><span id="statusText">尚未连接 Google</span></span><span id="fileMeta"></span><span id="dirtyState"></span></div>
+<div class="row"><label for="fileId">Drive File ID</label><input id="fileId" placeholder="第一次貼上，之後會自動記住"><button id="openBtn" disabled>開啟</button><button id="syncBtn" disabled>立即同步</button></div>
+<div class="status"><span><span id="stateDot" class="dot"></span><span id="statusText">尚未連接 Google</span></span><span id="fileMeta"></span><span id="dirtyState"></span></div>
 </section>
 <section class="grid">
-<div class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">编辑</h3><span class="muted">停止输入 1.2 秒后自动保存</span></div><textarea id="editor" placeholder="# 我的主题&#10;&#10;开始输入…"></textarea></div>
-<div class="card"><h3 style="margin-top:0">呈现</h3><div id="preview"></div></div>
+<div class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">編輯</h3><span class="muted">停止輸入 1.2 秒後自動儲存</span></div><textarea id="editor" placeholder="# 我的主題&#10;&#10;開始輸入…"></textarea></div>
+<div class="card"><h3 style="margin-top:0">呈現</h3><div id="preview"></div></div>
 </section>
 </main>
 <dialog id="conflictDialog">
-<div class="modal-head"><h3 style="margin:0 0 6px">发现同步冲突</h3><div class="muted">你本机有尚未同步的修改，同时 Drive 也出现了另一版。为避免覆盖，我先暂停自动保存。</div></div>
-<div class="modal-body"><div id="diffView" class="diff"></div><div class="diff-grid"><div><strong>本机版本</strong><div id="localConflict" class="diff-pane"></div></div><div><strong>云端版本</strong><div id="cloudConflict" class="diff-pane"></div></div></div></div>
-<div class="modal-actions"><button id="laterBtn">暂不处理</button><button id="cloudBtn">使用云端版</button><button id="localBtn" class="danger">保留本地并覆盖云端</button></div>
+<div class="modal-head"><h3 style="margin:0 0 6px">發現同步衝突</h3><div class="muted">你本機有尚未同步的修改，同時 Drive 也出現了另一版。為避免覆蓋，已暫停自動儲存。</div></div>
+<div class="modal-body"><div id="diffView" class="diff"></div><div class="diff-grid"><div><strong>本機版本</strong><div id="localConflict" class="diff-pane"></div></div><div><strong>雲端版本</strong><div id="cloudConflict" class="diff-pane"></div></div></div></div>
+<div class="modal-actions"><button id="laterBtn">暫不處理</button><button id="cloudBtn">使用雲端版</button><button id="localBtn" class="danger">保留本機並覆蓋雲端</button></div>
 </dialog>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/diff@5.2.0/dist/diff.min.js"></script>
 <script src="./config.js"></script>
-<script src="./app.js?v=20260905-1"></script>
+<script src="./content.js?v=20260905-2"></script>
+<script src="./sync.js?v=20260905-2"></script>
+<script src="./ui.js?v=20260905-2"></script>
 </body></html>

@@ -15,8 +15,14 @@
 - 互動狀態會寫入 Markdown 末端的 `DRIVE_MEMO_UI_STATE` 隱藏區塊，沿用 Drive 自動儲存與跨裝置同步
 - 快速連續操作會依序儲存；Drive 稍晚回報上一批本機更新時不會誤判為跨裝置衝突
 
+## 三大模組
+- `sync.js`：OAuth、Drive API、自動儲存、版本輪詢與衝突保護
+- `content.js`：Markdown 與互動狀態格式、解析、分類及 UI view model
+- `ui.js`：主畫面、預覽、互動控制與同步 Debug 界面
+- `app.js`：只供舊版快取頁面轉接三大模組，不放應用功能
+
 ## GitHub Pages 升级
-1. 上传/覆盖 index.html、app.js、manifest.webmanifest、sw.js 与三个 icon 文件。
+1. 上傳／覆蓋 index.html、app.js、sync.js、content.js、ui.js、manifest.webmanifest、sw.js 與三個 icon 檔案。
 2. config.js 请填回你原本的 GOOGLE_CLIENT_ID 与 ALLOWED_EMAIL。
 3. 保留：
    SYNC_INTERVAL_MS: 5000
