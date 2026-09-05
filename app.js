@@ -1,5 +1,5 @@
 let accessToken=null,tokenExpiresAt=0,tokenClient=null;
-let baseVersion=null,baseContent="",currentMeta=null,localDirty=false,saving=false,syncTimer=null,autosaveTimer=null,conflictActive=false,pendingConflict=null;
+let baseVersion=null,baseContent="",currentMeta=null,localDirty=false,saving=false,saveQueued=false,syncTimer=null,autosaveTimer=null,conflictActive=false,pendingConflict=null;
 const $=id=>document.getElementById(id),cfg=window.APP_CONFIG||{};
 const loginBtn=$("loginBtn"),logoutBtn=$("logoutBtn"),openBtn=$("openBtn"),syncBtn=$("syncBtn"),fileIdEl=$("fileId"),editor=$("editor"),preview=$("preview"),statusText=$("statusText"),stateDot=$("stateDot"),fileMeta=$("fileMeta"),dirtyState=$("dirtyState"),identity=$("identity"),conflictDialog=$("conflictDialog"),diffView=$("diffView"),localConflict=$("localConflict"),cloudConflict=$("cloudConflict");
 const SYNC_INTERVAL=cfg.SYNC_INTERVAL_MS||5000,AUTOSAVE_DELAY=cfg.AUTOSAVE_DELAY_MS||1200;
@@ -88,23 +88,29 @@ async function openCurrentFile(){
 }
 
 async function saveNow({force=false}={}){
- if(!localDirty||saving||conflictActive)return;const id=getFileId();if(!id)return;saving=true;setStatus("保存中…","sync");
+ if(conflictActive||!localDirty)return;
+ if(saving){saveQueued=true;return}
+ const id=getFileId();if(!id)return;
+ clearTimeout(autosaveTimer);autosaveTimer=null;saving=true;saveQueued=false;
+ const contentToSave=editor.value;let saveCompleted=false;setStatus("保存中…","sync");
  try{
   if(!force){
    const before=await fetchMetadata(id);
    if(baseVersion&&String(before.version)!==String(baseVersion)){
     const cloud=await fetchContent(id);
-    if(cloud!==editor.value){showConflict({meta:before,cloudContent:cloud,localContent:editor.value});return}
+    if(cloud===editor.value){baseContent=cloud;updateMeta(before);setDirty(false);saveCompleted=true;setStatus("已同步","ok");return}
+    if(cloud===contentToSave){baseContent=cloud;updateMeta(before);setDirty(editor.value!==baseContent);saveCompleted=true;setStatus(localDirty?"雲端已有上一批修改，繼續同步…":"已保存並同步",localDirty?"sync":"ok");return}
+    if(cloud!==baseContent){showConflict({meta:before,cloudContent:cloud,localContent:editor.value});return}
     updateMeta(before)
    }
   }
-  const r=await apiFetch(`https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(id)}?uploadType=media&fields=id,name,version,modifiedTime,size`,{method:"PATCH",headers:{"Content-Type":"text/markdown; charset=utf-8"},body:editor.value});
+  const r=await apiFetch(`https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(id)}?uploadType=media&fields=id,name,version,modifiedTime,size`,{method:"PATCH",headers:{"Content-Type":"text/markdown; charset=utf-8"},body:contentToSave});
   if(!r.ok){const t=await r.text();throw new Error(`${r.status} ${t.slice(0,250)}`)}
-  const m=await r.json();baseContent=editor.value;setDirty(false);updateMeta(m);setStatus("已保存并同步","ok")
+  const m=await r.json();baseContent=contentToSave;updateMeta(m);setDirty(editor.value!==baseContent);saveCompleted=true;setStatus(localDirty?"已保存上一批修改，繼續同步…":"已保存並同步",localDirty?"sync":"ok")
  }catch(e){if(e.message!=="AUTH_EXPIRED")setStatus(`保存失败：${e.message}`,"err")}
- finally{saving=false}
+ finally{saving=false;if(saveCompleted&&saveQueued&&localDirty&&!conflictActive){clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{autosaveTimer=null;saveNow()},0)}}
 }
-function scheduleAutosave(){clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>saveNow(),AUTOSAVE_DELAY)}
+function scheduleAutosave(){clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{autosaveTimer=null;saveNow()},AUTOSAVE_DELAY)}
 
 async function syncCheck(){
  if(!accessTokenValid()||!getFileId()||saving||conflictActive||document.hidden)return;
@@ -114,6 +120,7 @@ async function syncCheck(){
   if(String(m.version)===String(baseVersion))return;
   setStatus("发现云端更新…","sync");const cloud=await fetchContent(getFileId());
   if(cloud===editor.value){baseContent=cloud;setDirty(false);updateMeta(m);setStatus("已同步","ok");return}
+  if(cloud===baseContent){updateMeta(m);if(localDirty){setStatus("已確認雲端上一批修改，繼續同步…","sync");scheduleAutosave()}else setStatus("已同步","ok");return}
   if(!localDirty){editor.value=cloud;baseContent=cloud;updateMeta(m);renderPreview();setStatus("已自动载入另一装置的更新","ok");return}
   showConflict({meta:m,cloudContent:cloud,localContent:editor.value})
  }catch(e){if(e.message!=="AUTH_EXPIRED"){console.warn(e);setStatus("同步检查暂时失败，稍后自动重试","err")}}
