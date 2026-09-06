@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8"><title>Journal UI tests</title><pre id="results"></pre><iframe src="../index.html" style="width:1250px;height:650px"></iframe>
+<script>
+document.querySelector('iframe').addEventListener('load',function(){const w=this.contentWindow,d=this.contentDocument,c=w.DriveMemoContent,out=document.querySelector('#results');function check(name,ok){out.textContent+=(ok?'PASS ':'FAIL ')+name+'\n'}
+const today=c.localDateKey(),tomorrow=c.shiftDate(today,1),far=c.shiftDate(today,100),a=c.addBullet('',{action:'Drag me',date:today,pending:true,priority:'today'}),editor=d.querySelector('#editor');editor.value=c.addBullet(a.markdown,{action:'Future',date:far,priority:'urgent'}).markdown;editor.dispatchEvent(new w.Event('input'));
+const source=d.querySelector('#agenda article'),target=d.querySelector(`#agenda [data-date="${tomorrow}"]`),data=new w.DataTransfer();source.dispatchEvent(new w.DragEvent('dragstart',{bubbles:true,dataTransfer:data}));target.dispatchEvent(new w.DragEvent('dragover',{bubbles:true,cancelable:true,dataTransfer:data}));
+check('drop preview before mutation',target.querySelector('.drop-preview')&&c.getBullet(editor.value,a.bulletId).date===today);
+target.dispatchEvent(new w.DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:data}));check('drop changes date preserving pending',c.getBullet(editor.value,a.bulletId).date===tomorrow&&c.getBullet(editor.value,a.bulletId).pending&&!d.querySelector('.drop-preview'));
+check('source day no longer contains action',!d.querySelector(`#agenda [data-date="${today}"] article`));
+d.querySelector('[data-agenda-range=future]').click();check('future range includes distant action',d.querySelector(`#agenda [data-date="${far}"]`));check('future empty dates omitted',d.querySelectorAll('#agenda .agenda-day').length===9);
+d.querySelector('[data-agenda-range=week]').click();check('return to week',d.querySelectorAll('#agenda .agenda-day').length===8);
+check('desktop calendar visible with four priority counters',w.getComputedStyle(d.querySelector('.journal-sidebar')).display!=='none'&&d.querySelectorAll('.month-day .calendar-count').length%4===0);
+d.querySelector('#quickMemoBtn').click();check('Memo opens text-only editor',d.querySelector('#actionField').classList.contains('hidden')&&d.querySelector('#bulletDialog').dataset.pending==='true');
+d.querySelector('#projectRichEditor .outline-line').textContent='Memo body';d.querySelector('#bulletForm').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));const memo=c.parse(editor.value).journal.bullets.find(b=>b.action==='待確認的Quick Memo');check('Memo saved today and pending',memo&&memo.date===today&&memo.pending);
+d.querySelector(`#agenda [data-action=open][data-id="${memo.id}"]`).click();d.querySelector('[data-priority=today]').click();d.querySelector('#bulletForm').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));check('priority click clears pending',!c.getBullet(editor.value,memo.id).pending);
+});
+</script>

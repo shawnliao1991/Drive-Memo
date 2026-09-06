@@ -10,7 +10,10 @@
 - 支援跨行選取文字、Undo（Ctrl／Cmd+Z），多選浮窗提供移動、複製、剪下、貼上及確認後刪除；縮排按鈕可作用於多選條列。剪貼簿按鈕需瀏覽器授權。
 - 每天右上角的「＋」會以當天日期新增 Action；同步資訊顯示雲端修改日期與時間（精確到秒）
 - 編輯視窗採全螢幕；電腦側邊／手機底部圖示工具列支援階層展開收合、多選上移下移、顏色、大小與插圖，上下方向鍵可切換條列
-- 圖片上傳時可先填寫占位描述；游標預覽約占半個螢幕面積
+- 圖片占位與連結統一顯示「【Pic】」；游標預覽約占半個螢幕面積
+- Action 可拖曳至其他日期或桌面月曆，拖曳時預覽落點；也提供觸控拖曳把手
+- 日誌可切換一週、一個月、全部未來；一週之外只顯示有 Action 的日期。寬螢幕右側提供月曆與四色 Action 數量（含 Done）
+- Memo 直接開啟編輯器，儲存為今天的「待確認的Quick Memo」，顯示黃色待確認；選定四種重要度之一後解除待確認
 - 新增 Action 預設「今天完成」；重要度未選取呈現彩色外框，選取後呈現實心色塊
 - 引用圖片會上傳至以專案命名的 Google Drive 資料夾；指向連結可預覽並開啟大圖
 - 支援紅、綠、藍、無色四級重要度按鈕，並可新增、編輯、完成、軟刪除與復原
@@ -39,10 +42,11 @@
 - `content.js`：牛馬日誌資料格式、Markdown 相容層、分類、順延規則及 UI view model
 - `ui.js`：日誌首頁、Action／專案互動與後台設定
 - `outline.js`：一般 Action 與專案共用的階層條列編輯器
+- `journal.js`：日誌日期拖曳、月份日曆與範圍控制
 - `app.js`：只供舊版快取頁面轉接三大模組，不放應用功能
 
 ## GitHub Pages 升级
-1. 上傳／覆蓋 index.html、app.js、sync.js、content.js、outline.js、ui.js、manifest.webmanifest、sw.js 與三個 icon 檔案。
+1. 上傳／覆蓋 index.html、app.js、sync.js、content.js、outline.js、journal.js、ui.js、manifest.webmanifest、sw.js 與三個 icon 檔案。
 2. config.js 请填回你原本的 GOOGLE_CLIENT_ID 与 ALLOWED_EMAIL。
 3. 保留：
    SYNC_INTERVAL_MS: 5000
