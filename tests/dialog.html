@@ -7,7 +7,7 @@ document.querySelector('iframe').addEventListener('load',function(){
  const w=this.contentWindow,d=this.contentDocument,out=document.querySelector('#results');
  function check(name,fn){try{if(!fn())throw Error('assertion failed');out.textContent+='PASS '+name+'\n'}catch(e){out.textContent+='FAIL '+name+': '+e.message+'\n'}}
  d.querySelector('[data-action=add-day]').click();
- const body=d.querySelector('#bulletDialog .dialog-body'),editor=d.querySelector('#projectRichEditor'),line=editor.querySelector('summary');
+ const body=d.querySelector('#bulletDialog .dialog-body'),editor=d.querySelector('#projectRichEditor'),line=editor.querySelector('.outline-line');
  line.textContent='字級測試';line.focus();const r=d.createRange();r.selectNodeContents(line);w.getSelection().removeAllRanges();w.getSelection().addRange(r);line.dispatchEvent(new w.KeyboardEvent('keyup',{bubbles:true}));
  check('background scroll locked',()=>w.getComputedStyle(d.documentElement).overflow==='hidden');
  check('editor owns scroll area',()=>w.getComputedStyle(body).overflowY==='scroll'&&body.scrollHeight>body.clientHeight&&w.getComputedStyle(body).overscrollBehavior==='contain');
@@ -28,10 +28,10 @@ document.querySelector('iframe').addEventListener('load',function(){
  if(w.innerWidth<=820)check('mobile date and priority share row',()=>d.querySelector('#actionDateField').getBoundingClientRect().top===d.querySelector('#actionPriorityField').getBoundingClientRect().top);
  const del=d.querySelector('#deleteBulletBtn');del.classList.remove('hidden');
  if(w.innerWidth<=820)check('mobile delete and save share row',()=>Math.abs(del.getBoundingClientRect().top-d.querySelector('#bulletForm [type=submit]').getBoundingClientRect().top)<2);
- d.querySelector('#projectRichEditor summary').click();
+ d.querySelector('#projectRichEditor .outline-line').click();
  d.querySelector('[data-detail-tool=delete-lines]').click();
- check('delete requires confirmation',()=>d.querySelector('#outlineDeleteDialog').open&&d.querySelector('#projectRichEditor summary'));
+ check('delete requires confirmation',()=>d.querySelector('#outlineDeleteDialog').open&&d.querySelector('#projectRichEditor .outline-line'));
  d.querySelector('#cancelOutlineDelete').click();
- check('cancel delete keeps line',()=>!d.querySelector('#outlineDeleteDialog').open&&d.querySelector('#projectRichEditor summary'));
+ check('cancel delete keeps line',()=>!d.querySelector('#outlineDeleteDialog').open&&d.querySelector('#projectRichEditor .outline-line'));
 });
 </script>

@@ -1,6 +1,6 @@
 {
-  "name": "牛馬日誌",
-  "short_name": "牛馬日誌",
+  "name": "日誌",
+  "short_name": "日誌",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

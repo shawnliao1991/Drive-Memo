@@ -20,7 +20,7 @@ function create(options={}){
  async function waitForGoogleIdentity(){for(let i=0;i<120;i++){if(global.google?.accounts?.oauth2)return;await new Promise(resolve=>setTimeout(resolve,50))}throw new Error("Google Identity Services 未載入")}
 
  async function apiFetch(url,fetchOptions={}){
-  if(!accessTokenValid()){clearAuth("Google 權限已到期，請點「連接 Google」重新連接");throw new Error("AUTH_EXPIRED")}
+  if(!accessTokenValid()){clearAuth("Google 權限已到期，請點「登入」重新連接");throw new Error("AUTH_EXPIRED")}
   const headers=new Headers(fetchOptions.headers||{});headers.set("Authorization",`Bearer ${accessToken}`);const response=await fetch(url,{...fetchOptions,headers});
   if(response.status===401){clearAuth("Google 權限已到期，請重新連接");throw new Error("AUTH_EXPIRED")}return response
  }
@@ -29,9 +29,10 @@ function create(options={}){
  async function fetchContent(id){const response=await apiFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media`);if(!response.ok){const text=await response.text();throw new Error(`${response.status} ${text.slice(0,250)}`)}return response.text()}
  function driveQueryValue(value){return String(value||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'")}
  async function ensureProjectFolder(projectId,projectTitle){
-  const query=`mimeType='application/vnd.google-apps.folder' and trashed=false and appProperties has { key='driveMemoProjectId' and value='${driveQueryValue(projectId)}' }`,params=new URLSearchParams({q:query,spaces:"drive",fields:"files(id,name)",pageSize:"10"}),result=await apiJson(`https://www.googleapis.com/drive/v3/files?${params}`),folder=result.files?.[0],name=String(projectTitle||"未命名專案").slice(0,160);
+  const rootId=String(options.getImageFolderId?.()||"").trim();if(!/^[a-zA-Z0-9_-]+$/.test(rootId))throw new Error("請先在後台設定圖片上傳資料夾 ID");
+  const query=`mimeType='application/vnd.google-apps.folder' and trashed=false and '${driveQueryValue(rootId)}' in parents and appProperties has { key='driveMemoProjectId' and value='${driveQueryValue(projectId)}' }`,params=new URLSearchParams({q:query,spaces:"drive",fields:"files(id,name)",pageSize:"10"}),result=await apiJson(`https://www.googleapis.com/drive/v3/files?${params}`),folder=result.files?.[0],name=String(projectTitle||"未命名專案").slice(0,160);
   if(folder){if(folder.name!==name)await apiJson(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(folder.id)}?fields=id,name`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({name})});return folder.id}
-  const created=await apiJson("https://www.googleapis.com/drive/v3/files?fields=id,name",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,mimeType:"application/vnd.google-apps.folder",appProperties:{driveMemoProjectId:String(projectId),driveMemoType:"project-images"}})});return created.id
+  const created=await apiJson("https://www.googleapis.com/drive/v3/files?fields=id,name",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,mimeType:"application/vnd.google-apps.folder",parents:[rootId],appProperties:{driveMemoProjectId:String(projectId),driveMemoType:"project-images"}})});return created.id
  }
  async function uploadProjectImage({file,projectId,projectTitle}={}){
   if(!(file instanceof Blob)||!String(file.type||"").startsWith("image/"))throw new Error("請選擇圖片檔案");if(file.size>25*1024*1024)throw new Error("圖片不可超過 25 MB");if(!projectId)throw new Error("找不到專案資料");

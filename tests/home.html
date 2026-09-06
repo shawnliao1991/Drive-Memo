@@ -1,0 +1,12 @@
+<!doctype html><meta charset="utf-8"><title>Home regression tests</title><pre id="results"></pre><iframe src="../index.html" style="width:390px;height:600px"></iframe>
+<script>
+document.querySelector('iframe').addEventListener('load',function(){const w=this.contentWindow,d=this.contentDocument,c=w.DriveMemoContent,out=document.querySelector('#results');function check(name,ok){out.textContent+=(ok?'PASS ':'FAIL ')+name+'\n'}
+const today=c.localDateKey(),a=c.addBullet('',{action:'Old action',date:c.shiftDate(today,-4),priority:'today'}),editor=d.querySelector('#editor');editor.value=a.markdown;editor.dispatchEvent(new w.Event('input'));
+check('highlight matches daily width',d.querySelector('#rolloverPanel').getBoundingClientRect().width===d.querySelector('.agenda-day').getBoundingClientRect().width);
+check('simplified navigation',!d.querySelector('#logoutBtn')&&!d.querySelector('.brand')&&d.querySelector('#loginBtn').textContent==='登入'&&d.querySelector('#debugNav').textContent==='後台');
+check('mobile navigation stays one row',Math.abs(d.querySelector('#journalNav').getBoundingClientRect().top-d.querySelector('#loginBtn').getBoundingClientRect().top)<10);
+d.querySelector('#rolloverSelectNone').click();check('select none',!d.querySelector('#rolloverList input').checked);d.querySelector('#rolloverSelectAll').click();check('select all',d.querySelector('#rolloverList input').checked);
+d.querySelector('#rolloverDone').click();check('Done keeps original date',c.getBullet(editor.value,a.bulletId).status==='done'&&c.getBullet(editor.value,a.bulletId).date===c.shiftDate(today,-4));
+check('settings has two ID fields and no debug view',d.querySelector('#imageFolderId')&&d.querySelectorAll('#debugPage input').length===2&&!d.querySelector('#preview'));
+});
+</script>
