@@ -5,6 +5,7 @@ const today=c.localDateKey(),a=c.addBullet('',{action:'Old action',date:c.shiftD
 check('highlight matches daily width',d.querySelector('#rolloverPanel').getBoundingClientRect().width===d.querySelector('.agenda-day').getBoundingClientRect().width);
 check('simplified navigation',!d.querySelector('#logoutBtn')&&!d.querySelector('.brand')&&d.querySelector('#loginBtn').textContent==='登入'&&d.querySelector('#debugNav').textContent==='後台');
 check('mobile navigation stays one row',Math.abs(d.querySelector('#journalNav').getBoundingClientRect().top-d.querySelector('#loginBtn').getBoundingClientRect().top)<10);
+check('mobile calendar visible without horizontal overflow',w.getComputedStyle(d.querySelector('.journal-sidebar')).display!=='none'&&d.documentElement.scrollWidth<=w.innerWidth);
 d.querySelector('#rolloverSelectNone').click();check('select none',!d.querySelector('#rolloverList input').checked);d.querySelector('#rolloverSelectAll').click();check('select all',d.querySelector('#rolloverList input').checked);
 d.querySelector('#rolloverDone').click();check('Done keeps original date',c.getBullet(editor.value,a.bulletId).status==='done'&&c.getBullet(editor.value,a.bulletId).date===c.shiftDate(today,-4));
 check('settings has two ID fields and no debug view',d.querySelector('#imageFolderId')&&d.querySelectorAll('#debugPage input').length===2&&!d.querySelector('#preview'));
