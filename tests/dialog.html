@@ -26,6 +26,9 @@ document.querySelector('iframe').addEventListener('load',function(){
  check('unused tools removed and indentation swapped',()=>!d.querySelector('[data-detail-tool=bold]')&&!d.querySelector('[data-detail-tool=add-block]')&&Boolean(d.querySelector('[data-detail-tool=outdent]').compareDocumentPosition(d.querySelector('[data-detail-tool=indent]'))&w.Node.DOCUMENT_POSITION_FOLLOWING));
  d.querySelector('[data-detail-tool=select]').click();
  check('multi-select tools in popup',()=>!d.querySelector('#multiTools').classList.contains('hidden')&&d.querySelector('#multiTools [data-detail-tool=move-up]')&&d.querySelector('#multiTools [data-detail-tool=delete-lines]'));
+ if(w.innerWidth>820)check('desktop multi-select popup aligns beside its button',()=>{const p=d.querySelector('#multiTools').getBoundingClientRect(),b=d.querySelector('[data-detail-tool=select]').getBoundingClientRect();return Math.abs(b.left-p.right-10)<2&&p.right<=b.left&&p.top<b.bottom&&p.bottom>b.top});
+ d.querySelector('[data-detail-tool=select]').click();d.querySelector('[data-detail-tool=select]').click();
+ if(w.innerWidth>820)check('desktop multi-select popup stays aligned after reopening',()=>{const p=d.querySelector('#multiTools').getBoundingClientRect(),b=d.querySelector('[data-detail-tool=select]').getBoundingClientRect();return Math.abs(b.left-p.right-10)<2&&p.right<=b.left&&p.top<b.bottom&&p.bottom>b.top});
  if(w.innerWidth<=820)check('mobile date and priority share row',()=>d.querySelector('#actionDateField').getBoundingClientRect().top===d.querySelector('#actionPriorityField').getBoundingClientRect().top);
  const del=d.querySelector('#deleteBulletBtn');del.classList.remove('hidden');
  if(w.innerWidth<=820)check('mobile delete and save share row',()=>Math.abs(del.getBoundingClientRect().top-d.querySelector('#bulletForm [type=submit]').getBoundingClientRect().top)<2);

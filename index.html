@@ -78,7 +78,7 @@ html:has(dialog[open]),body:has(dialog[open]){overflow:hidden;overscroll-behavio
 #projectTextColors,#projectTextSize{position:fixed;inset:auto;display:flex;width:max-content;height:auto;max-width:calc(100vw - 16px);flex-wrap:wrap;gap:9px;padding:12px;background:#252526;border:1px solid #555;border-radius:10px;box-shadow:0 8px 28px #0008;z-index:90}
 #projectDetailsTools #projectTextSize .btn{width:auto;min-width:52px;height:40px;padding:4px 10px;font-size:16px}
 
-#multiTools{position:fixed;display:flex;gap:6px;padding:10px;background:#252526;border:1px solid #555;border-radius:10px;box-shadow:0 8px 28px #0008;z-index:89;max-width:calc(100vw - 16px);flex-wrap:wrap}
+#multiTools{position:fixed;display:flex;width:max-content;gap:6px;padding:10px;background:#252526;border:1px solid #555;border-radius:10px;box-shadow:0 8px 28px #0008;z-index:89;max-width:calc(100vw - 16px);flex-wrap:wrap}
 .project-rich-editor{outline:none;user-select:text;-webkit-user-select:text}
 .project-rich-editor summary:empty::after{content:"";display:inline-block}
 @media(max-width:820px){
@@ -106,7 +106,7 @@ html:has(dialog[open]),body:has(dialog[open]){overflow:hidden;overscroll-behavio
 @media(max-width:820px){.topbar{flex-wrap:nowrap;gap:6px}.topbar .nav{order:0;width:auto;flex:1;min-width:0}.topbar .nav a{padding:8px}.topbar #loginBtn{flex-shrink:0}}
 
 .journal-layout{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"calendar" "timeline";gap:18px}.journal-timeline{grid-area:timeline;min-width:0;overflow-anchor:none}.journal-sidebar{display:block;grid-area:calendar;width:100%;max-width:820px;min-width:0;margin:0 auto;overflow-anchor:none}
-.agenda-ranges{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:24px auto;max-width:820px}.agenda-ranges [aria-pressed="true"]{border-color:#007acc;background:#094771}
+.agenda-ranges{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:24px auto;max-width:820px}.agenda-ranges [aria-pressed="true"]{border-color:#007acc;background:#094771}.agenda{align-content:start}
 .bullet{grid-template-columns:44px minmax(0,1fr) auto;overflow:hidden;touch-action:pan-y;transition:transform .16s ease,box-shadow .16s ease}.action-drag-handle{display:grid;place-items:center;align-self:stretch;width:44px;min-height:44px;margin:-4px 0 -4px -5px;padding:0;border:0;border-right:1px solid #3c3c3c;border-radius:8px 0 0 8px;background:transparent;color:#b4b4b4;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;font-size:22px}.action-drag-handle:active{cursor:grabbing;background:#37373d;color:#fff}.rollover-row .action-drag-handle{flex:0 0 44px;margin:-8px 0 -8px -8px;border-radius:8px 0 0 8px}.bullet.swiping-right{box-shadow:inset 96px 0 rgba(35,134,78,.45)}.bullet.swiping-left{box-shadow:inset -96px 0 rgba(200,48,48,.45)}
 .dragging{opacity:.45}.drop-target{outline:2px dashed #4daafc;outline-offset:2px}.drop-preview{border:2px dashed #4daafc;background:#15395f;padding:12px;border-radius:10px;color:#9cdcfe;margin:6px 0}
 .drag-hint{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:95;background:#094771;color:white;padding:12px 22px;border-radius:12px;pointer-events:none}
@@ -123,6 +123,7 @@ html:has(dialog[open]),body:has(dialog[open]){overflow:hidden;overscroll-behavio
 .month-grid .weekday.weekend,.month-day.weekend strong{color:#ff6b6b}
 .bullet.urgent:hover{border-left-color:var(--red)}.bullet.today:hover{border-left-color:var(--green)}.bullet.soon:hover{border-left-color:var(--blue)}.bullet.pending:hover{border-left-color:#dcdcaa}.bullet.done:hover,.bullet.resolved:hover{border-left-color:#aeb3bb}
 @media(hover:none){.bullet:hover{background:#252526;border-top-color:#3c3c3c;border-right-color:#3c3c3c;border-bottom-color:#3c3c3c}.bullet.done:hover,.bullet.resolved:hover{background:#202020}}
+.bullet.done .bullet-title,.bullet.done .bullet-action,.bullet.resolved .bullet-title,.bullet.resolved .bullet-action,.project-action-row.done .action-text{text-decoration:none}
 .inline-dialog-actions{display:flex;align-items:center;justify-content:flex-end;flex:1 1 auto;gap:6px;min-width:0;margin:0 0 0 auto!important;padding:0!important;border:0!important;background:transparent!important}.inline-dialog-actions .dialog-left{display:contents}.inline-dialog-actions .btn{padding:6px 9px;font-size:12px;white-space:nowrap}#cancelBulletBtn{margin-right:20px}.compact-action-edit .dialog-head{display:none}.field-label-row{flex-wrap:wrap}.field-label-row>label{margin-right:auto}.trash-list{display:grid;gap:8px}.trash-action-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:58px;padding:10px 12px;border:1px solid #3c3c3c;border-radius:10px;background:#202020;touch-action:pan-y;transition:transform .16s ease,box-shadow .16s ease;overflow:hidden}.trash-action-row div{min-width:0}.trash-action-row strong,.trash-action-row span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.trash-action-row span,.trash-action-row time{color:#969696;font-size:12px}.trash-action-row.swiping-restore{box-shadow:inset -96px 0 rgba(35,134,78,.45)}
 @media(max-width:820px){.month-day{min-height:48px}.calendar-help{font-size:11px}.bullet{grid-template-columns:42px minmax(0,1fr) auto;column-gap:8px}.bullet .action-drag-handle{grid-column:1;grid-row:1;width:42px;margin:-6px 0 -6px -7px}.rollover-row{gap:7px}.rollover-row .priority-label{display:none}.rollover-row .action-drag-handle{width:42px;flex-basis:42px}.inline-dialog-actions{flex:1 1 auto;margin-left:0!important}.inline-dialog-actions .btn{min-height:36px;padding:6px 10px}#bulletDialog.compact-action-edit .dialog-body{padding-top:max(12px,env(safe-area-inset-top))}}
 </style>
@@ -156,7 +157,7 @@ html:has(dialog[open]),body:has(dialog[open]){overflow:hidden;overscroll-behavio
 <script src="./content.js?v=20260906-9"></script>
 <script src="./sync.js?v=20260906-7"></script>
 <script src="./outline.js?v=20260906-7"></script>
-<script src="./journal.js?v=20260906-10"></script>
-<script src="./ui.js?v=20260906-10"></script>
+<script src="./journal.js?v=20260906-11"></script>
+<script src="./ui.js?v=20260906-11"></script>
 </body>
 </html>
