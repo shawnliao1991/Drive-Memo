@@ -21,5 +21,17 @@ document.querySelector('iframe').addEventListener('load',function(){
  check('color wheel and popover',()=>w.getComputedStyle(d.querySelector('.color-wheel')).backgroundImage.includes('conic-gradient')&&!d.querySelector('#projectTextColors').classList.contains('hidden'));
  d.querySelector('#cancelBulletBtn').click();
  check('background scroll restored',()=>w.getComputedStyle(d.documentElement).overflow!=='hidden');
+ d.querySelector('[data-action=add-day]').click();
+ check('unused tools removed and indentation swapped',()=>!d.querySelector('[data-detail-tool=bold]')&&!d.querySelector('[data-detail-tool=add-block]')&&Boolean(d.querySelector('[data-detail-tool=outdent]').compareDocumentPosition(d.querySelector('[data-detail-tool=indent]'))&w.Node.DOCUMENT_POSITION_FOLLOWING));
+ d.querySelector('[data-detail-tool=select]').click();
+ check('multi-select tools in popup',()=>!d.querySelector('#multiTools').classList.contains('hidden')&&d.querySelector('#multiTools [data-detail-tool=move-up]')&&d.querySelector('#multiTools [data-detail-tool=delete-lines]'));
+ if(w.innerWidth<=820)check('mobile date and priority share row',()=>d.querySelector('#actionDateField').getBoundingClientRect().top===d.querySelector('#actionPriorityField').getBoundingClientRect().top);
+ const del=d.querySelector('#deleteBulletBtn');del.classList.remove('hidden');
+ if(w.innerWidth<=820)check('mobile delete and save share row',()=>Math.abs(del.getBoundingClientRect().top-d.querySelector('#bulletForm [type=submit]').getBoundingClientRect().top)<2);
+ d.querySelector('#projectRichEditor summary').click();
+ d.querySelector('[data-detail-tool=delete-lines]').click();
+ check('delete requires confirmation',()=>d.querySelector('#outlineDeleteDialog').open&&d.querySelector('#projectRichEditor summary'));
+ d.querySelector('#cancelOutlineDelete').click();
+ check('cancel delete keeps line',()=>!d.querySelector('#outlineDeleteDialog').open&&d.querySelector('#projectRichEditor summary'));
 });
 </script>
