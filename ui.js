@@ -153,7 +153,9 @@ function bindEvents(){
  els.laterBtn.addEventListener("click",()=>{sync.resolveLater();closeConflict()});els.cloudBtn.addEventListener("click",()=>sync.resolveUseCloud());els.localBtn.addEventListener("click",()=>sync.resolveKeepLocal());
 }
 
-function initialize(){byId("imageFolderId").value=localStorage.getItem("driveMemoImageFolderId")||"";byId("imageFolderId").addEventListener("change",()=>localStorage.setItem("driveMemoImageFolderId",byId("imageFolderId").value.trim()));els.fileId.value=localStorage.getItem("driveMemoFileId")||"";bindEvents();route();renderAll();sync.initialize().catch(error=>setStatus(`初始化失敗：${error.message}`,"err"));if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js").catch(()=>{})}
+function readSetting(key){try{return localStorage.getItem(key)||""}catch{return ""}}
+function writeSetting(key,value){try{localStorage.setItem(key,value)}catch{}}
+function initialize(){byId("imageFolderId").value=readSetting("driveMemoImageFolderId")||"";byId("imageFolderId").addEventListener("change",()=>writeSetting("driveMemoImageFolderId",byId("imageFolderId").value.trim()));els.fileId.value=readSetting("driveMemoFileId")||"";bindEvents();route();renderAll();sync.initialize().catch(error=>setStatus(`初始化失敗：${error.message}`,"err"));if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js").catch(()=>{})}
 
 initialize();
 global.DriveMemoUI=Object.freeze({renderAll,sync});

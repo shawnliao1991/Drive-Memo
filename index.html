@@ -116,6 +116,10 @@ html:has(dialog[open]),body:has(dialog[open]){overflow:hidden;overscroll-behavio
 .day-counts{display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-top:7px}.calendar-count{font-size:12px;font-weight:600}.calendar-count.urgent,.calendar-legend .urgent{color:#f48771}.calendar-count.today,.calendar-legend .today{color:#89d185}.calendar-count.soon,.calendar-legend .soon{color:#9cdcfe}.calendar-count.someday,.calendar-legend .someday{color:#969696}
 .pending-count{font-size:10px}.calendar-legend{font-size:12px;line-height:1.8;margin:10px 0}.calendar-actions .bullet{margin:7px 0}.calendar-actions h3{font-size:15px}
 @media(min-width:1200px){main{max-width:1700px}.journal-layout{grid-template-columns:minmax(0,1.2fr) minmax(480px,1fr)}.journal-sidebar{display:block;align-self:start;position:sticky;top:80px}.journal-head{max-width:none}#journalCalendar{max-height:calc(100vh - 96px);overflow:auto}}
+
+.day-counts{display:flex;flex-wrap:wrap;align-content:flex-start;justify-content:flex-start;gap:3px;padding:3px;min-height:5px}
+.calendar-dot{display:block;width:5px;height:5px;flex:0 0 5px;border-radius:0;background:#969696}
+.calendar-dot.urgent{background:#f48771}.calendar-dot.today{background:#89d185}.calendar-dot.soon{background:#9cdcfe}.calendar-dot.someday{background:#969696}.calendar-dot.pending{background:#dcdcaa}
 </style>
 </head>
 <body>
@@ -139,14 +143,14 @@ html:has(dialog[open]),body:has(dialog[open]){overflow:hidden;overscroll-behavio
 <div id="imageHover" class="image-hover hidden"><span class="muted">載入預覽中…</span></div>
 <dialog id="imageDialog" class="image-dialog"><div class="dialog-head"><h3 id="imageDialogTitle">圖片預覽</h3><button id="closeImageBtn" type="button" class="icon-btn" aria-label="關閉圖片">×</button></div><div class="dialog-body"><img id="imageDialogImg" alt="專案圖片"></div></dialog>
 <div id="toast" class="toast hidden"><span id="toastText"></span><button id="undoDeleteBtn">復原</button></div>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script id="googleIdentityScript" src="https://accounts.google.com/gsi/client" async defer onerror="this.dataset.failed='true'"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/diff@5.2.0/dist/diff.min.js"></script>
 <script src="./config.js"></script>
-<script src="./content.js?v=20260906-6"></script>
-<script src="./sync.js?v=20260906-6"></script>
-<script src="./outline.js?v=20260906-6"></script>
-<script src="./journal.js?v=20260906-6"></script>
-<script src="./ui.js?v=20260906-6"></script>
+<script src="./content.js?v=20260906-7"></script>
+<script src="./sync.js?v=20260906-7"></script>
+<script src="./outline.js?v=20260906-7"></script>
+<script src="./journal.js?v=20260906-7"></script>
+<script src="./ui.js?v=20260906-7"></script>
 </body>
 </html>
