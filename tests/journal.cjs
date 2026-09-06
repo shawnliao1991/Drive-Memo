@@ -6,4 +6,5 @@ const week=c.getAgendaRange(text,'2026-01-31','week');assert.equal(week.length,8
 const month=c.getAgendaRange(text,'2026-01-31','month');assert.equal(month.length,9);assert.equal(month.at(-1).date,'2026-02-28');
 const future=c.getAgendaRange(text,'2026-01-31','future');assert.equal(future.length,10);assert.equal(future.at(-1).date,'2027-01-01');
 const counts=c.getMonthCounts(text,'2026-02');assert.equal(counts['2026-02-02'].pending,1);assert.equal(counts['2026-02-02'].today,0);
+text=c.softDeleteBullet(text,memo.bulletId);assert.equal(c.getTrash(text).length,1);text=c.restoreBullet(text,memo.bulletId);assert.equal(c.getTrash(text).length,0);assert.equal(c.getBullet(text,memo.bulletId).date,'2026-02-02');
 console.log('PASS pending memo lifecycle, date movement, sparse week/month/future ranges, clamped month end, calendar counters');

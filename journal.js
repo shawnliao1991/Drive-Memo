@@ -1,14 +1,14 @@
 (function(global){
 "use strict";
- function create({root,content,getText,mutate,onRange,onDates}){
-  let month=content.localDateKey().slice(0,7),selectedDays=new Set(),dragId='',dropDate='',pointer=null;
+ function create({root,content,getText,mutate,onRange,onDates,onSwipe}){
+  let month=content.localDateKey().slice(0,7),selectedDays=new Set(),dragId='',dropDate='',pointer=null,swipe=null,suppressClickUntil=0,suppressClickId='';
  const calendar=root.querySelector('#journalCalendar'),hint=root.querySelector('#dragHint');
  function renderCalendar(){const [y,m]=month.split('-').map(Number),first=new Date(y,m-1,1,12).getDay(),days=new Date(y,m,0,12).getDate(),counts=content.getMonthCounts(getText(),month);let cells='';
  for(let i=0;i<first;i++)cells+='<span></span>';
   for(let i=1;i<=days;i++){const date=month+'-'+String(i).padStart(2,'0'),c=counts[date]||{},selected=selectedDays.has(date),counters=[...content.PRIORITIES,"pending"].map(p=>Array.from({length:c[p]||0},()=>`<span class="calendar-dot ${p}" aria-hidden="true"></span>`).join("")).join('');cells+=`<button type="button" class="month-day ${date===content.localDateKey()?'is-today':''} ${selected?'is-selected':''}" data-month-date="${date}" data-drop-date="${date}" aria-label="${date}，${Object.values(c).reduce((a,b)=>a+b,0)} 個 Action${selected?'，已選取':''}" aria-pressed="${selected}"><strong>${i}</strong><span class="day-counts">${counters}</span></button>`}
   calendar.innerHTML=`<div class="calendar-head"><button class="btn" data-month-step="-1" aria-label="上個月">‹</button><strong>${y} 年 ${m} 月</strong><button class="btn" data-month-step="1" aria-label="下個月">›</button></div><div class="month-grid">${['日','一','二','三','四','五','六'].map(n=>`<span class="weekday">${n}</span>`).join('')}${cells}</div><p class="calendar-help">點選日期可多選，時間軸只顯示所選日期。</p>`;
   }
-  function toggleDay(date){if(selectedDays.has(date))selectedDays.delete(date);else selectedDays.add(date);renderCalendar();onDates([...selectedDays].sort())}
+  function toggleDay(date){if(selectedDays.has(date))selectedDays.delete(date);else selectedDays.add(date);onDates([...selectedDays].sort())}
  function clearPreview(){root.querySelectorAll('.drop-target').forEach(n=>n.classList.remove('drop-target'));root.querySelectorAll('.drop-preview').forEach(n=>n.remove());hint.classList.add('hidden');dropDate=''}
  function preview(target){const zone=target?.closest('[data-drop-date]');if(!zone){clearPreview();return}const date=zone.dataset.dropDate;if(date===dropDate&&zone.classList.contains('drop-target'))return;clearPreview();dropDate=date;zone.classList.add('drop-target');hint.textContent='放開移到 '+date;hint.classList.remove('hidden');
  const source=content.getBullet(getText(),dragId);if(!source)return;const section=zone.matches('.agenda-day')?zone:null;if(!section)return;
@@ -21,6 +21,11 @@
  root.addEventListener('pointerdown',e=>{const handle=e.target.closest('.action-drag-handle');if(!handle||e.button!==0)return;e.preventDefault();dragId=handle.closest('[data-drag-id]').dataset.dragId;pointer=e.pointerId;handle.setPointerCapture(pointer)});
  root.addEventListener('pointermove',e=>{if(pointer!==e.pointerId)return;e.preventDefault();preview(document.elementFromPoint(e.clientX,e.clientY));if(e.clientY<80)scrollBy(0,-18);if(e.clientY>innerHeight-80)scrollBy(0,18)});
  root.addEventListener('pointerup',e=>{if(pointer===e.pointerId){preview(document.elementFromPoint(e.clientX,e.clientY));finish(true)}});root.addEventListener('pointercancel',()=>finish(false));document.addEventListener('keydown',e=>{if(e.key==='Escape'&&dragId)finish(false)});
+ function clearSwipe(){if(swipe?.card){swipe.card.style.removeProperty('transform');swipe.card.classList.remove('swiping-left','swiping-right')}swipe=null}
+ root.addEventListener('pointerdown',e=>{const card=e.target.closest('article.bullet[data-id]');if(!card||e.target.closest('.action-drag-handle')||e.button!==0)return;swipe={card,id:card.dataset.id,pointerId:e.pointerId,startX:e.clientX,startY:e.clientY,dx:0,active:false};try{card.setPointerCapture?.(e.pointerId)}catch{}});
+ root.addEventListener('pointermove',e=>{if(!swipe||swipe.pointerId!==e.pointerId)return;const dx=e.clientX-swipe.startX,dy=e.clientY-swipe.startY;if(!swipe.active&&Math.abs(dx)>12&&Math.abs(dx)>Math.abs(dy)*1.2)swipe.active=true;if(!swipe.active)return;e.preventDefault();swipe.dx=dx;swipe.card.classList.toggle('swiping-left',dx<0);swipe.card.classList.toggle('swiping-right',dx>0);swipe.card.style.transform=`translateX(${Math.max(-96,Math.min(96,dx))}px)`});
+ root.addEventListener('pointerup',e=>{if(!swipe||swipe.pointerId!==e.pointerId)return;const state=swipe,commit=state.active&&Math.abs(state.dx)>=72,direction=state.dx<0?'left':'right';if(state.active){suppressClickUntil=performance.now()+500;suppressClickId=state.id}clearSwipe();if(commit)onSwipe(state.id,direction)});root.addEventListener('pointercancel',()=>clearSwipe());
+ root.addEventListener('click',e=>{const card=e.target.closest('article.bullet[data-id]');if(card?.dataset.id===suppressClickId&&performance.now()<suppressClickUntil){e.preventDefault();e.stopImmediatePropagation()}},true);
  root.addEventListener('click',e=>{if(e.target.closest('.action-drag-handle'))e.preventDefault()});
   root.addEventListener('click',e=>{const step=e.target.closest('[data-month-step]'),day=e.target.closest('[data-month-date]'),range=e.target.closest('[data-agenda-range]');if(step){const [y,m]=month.split('-').map(Number);month=content.localDateKey(new Date(y,m-1+Number(step.dataset.monthStep),1,12)).slice(0,7);renderCalendar()}if(day)toggleDay(day.dataset.monthDate);if(range){selectedDays.clear();renderCalendar();onRange(range.dataset.agendaRange)}});
   return{renderCalendar,getSelectedDates:()=>[...selectedDays].sort()};

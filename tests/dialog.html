@@ -35,7 +35,9 @@ document.querySelector('iframe').addEventListener('load',function(){
  d.querySelector('#cancelOutlineDelete').click();
  check('cancel delete keeps line',()=>!d.querySelector('#outlineDeleteDialog').open&&d.querySelector('#projectRichEditor .outline-line'));
  d.querySelector('#cancelBulletBtn').click();const project=c.addBullet('',{action:'專案 Action',date:c.localDateKey(),priority:'today'}),store=d.querySelector('#editor');store.value=c.convertToProject(project.markdown,project.bulletId);store.dispatchEvent(new w.Event('input'));d.querySelector(`[data-action=open][data-id="${project.bulletId}"]`).click();
- check('project Action title bar removed',()=>d.querySelector('#bulletDialog').classList.contains('compact-project-action')&&w.getComputedStyle(d.querySelector('#bulletDialog .dialog-head')).display==='none');
+ check('every Action edit title bar removed',()=>d.querySelector('#bulletDialog').classList.contains('compact-action-edit')&&w.getComputedStyle(d.querySelector('#bulletDialog .dialog-head')).display==='none');
  check('project content row owns delete cancel save',()=>{const row=d.querySelector('#bulletDetailsLabel').closest('.field-label-row');return ['deleteBulletBtn','cancelBulletBtn'].every(id=>row.querySelector('#'+id))&&row.querySelector('[type=submit]')});
+ check('cancel and save have extra spacing',()=>parseFloat(w.getComputedStyle(d.querySelector('#cancelBulletBtn')).marginRight)>=18);
+ d.querySelector('#deleteBulletBtn').click();check('Action deletion requires confirmation',()=>d.querySelector('#deleteActionDialog').open&&!c.getBullet(store.value,project.bulletId).deletedAt);d.querySelector('#cancelDeleteAction').click();check('cancel keeps Action',()=>!d.querySelector('#deleteActionDialog').open&&!c.getBullet(store.value,project.bulletId).deletedAt);d.querySelector('#deleteBulletBtn').click();d.querySelector('#confirmDeleteAction').click();check('confirmed deletion moves Action to trash',()=>!d.querySelector('#bulletDialog').open&&c.getTrash(store.value).some(item=>item.id===project.bulletId));
 });
 </script>
