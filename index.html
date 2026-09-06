@@ -62,7 +62,7 @@ dialog{width:min(620px,calc(100vw - 24px));max-height:90vh;border:0;border-radiu
 .priority-option[data-priority].active{background:var(--priority);border-color:var(--priority);color:#181818;box-shadow:none}
 @media(max-width:820px){
  #bulletDialog .dialog-body,#convertDialog .dialog-body{padding:16px 16px 150px}
- #projectDetailsTools{top:auto;bottom:calc(var(--keyboard-inset,0px) + env(safe-area-inset-bottom) + 8px);left:8px;right:8px;transform:none;flex-direction:row;justify-content:center;flex-wrap:wrap;gap:4px;max-height:none}
+ #projectDetailsTools{top:auto;bottom:var(--keyboard-inset,0px);left:0;right:0;transform:none;flex-direction:row;justify-content:center;flex-wrap:wrap;gap:4px;max-height:none;border-right:0;border-bottom:0;border-left:0;border-radius:12px 12px 0 0;padding-right:max(8px,env(safe-area-inset-right));padding-bottom:max(8px,env(safe-area-inset-bottom));padding-left:max(8px,env(safe-area-inset-left))}
  #projectDetailsTools .btn,#projectTextSize{width:36px;height:36px;font-size:19px}
  #projectTextColors{top:auto;bottom:100%;right:0;max-width:100%;flex-wrap:wrap}
  #bulletDialog .dialog-actions{padding-bottom:108px}
@@ -117,9 +117,12 @@ html:has(dialog[open]),body:has(dialog[open]){overflow:hidden;overscroll-behavio
 .pending-count{font-size:10px}.calendar-legend{font-size:12px;line-height:1.8;margin:10px 0}.calendar-actions .bullet{margin:7px 0}.calendar-actions h3{font-size:15px}
 @media(min-width:1200px){main{max-width:1700px}.journal-layout{grid-template-columns:minmax(0,1.2fr) minmax(480px,1fr);grid-template-areas:"timeline calendar";gap:24px}.journal-sidebar{max-width:none;align-self:start;position:sticky;top:80px}.journal-head{max-width:none}#journalCalendar{max-height:calc(100vh - 96px);overflow:auto}}
 
-.day-counts{display:flex;flex-wrap:wrap;align-content:flex-start;justify-content:flex-start;gap:3px;padding:3px;min-height:5px}
-.calendar-dot{display:block;width:5px;height:5px;flex:0 0 5px;border-radius:0;background:#969696}
-.calendar-dot.urgent{background:#f48771}.calendar-dot.today{background:#89d185}.calendar-dot.soon{background:#9cdcfe}.calendar-dot.someday{background:#969696}.calendar-dot.pending{background:#dcdcaa}
+.day-counts{display:flex;flex-wrap:wrap;align-content:flex-start;justify-content:flex-start;gap:3px;padding:3px;min-height:7px}
+.calendar-dot{display:block;width:7px;height:7px;flex:0 0 7px;border-radius:2px;background:#a8aeb8;box-shadow:0 0 0 1px rgba(0,0,0,.55)}
+.calendar-dot.urgent{background:#ff5f5f}.calendar-dot.today{background:#3ee68b}.calendar-dot.soon{background:#42b8ff}.calendar-dot.someday{background:#a8aeb8}.calendar-dot.pending{background:#ffd84d}
+.month-grid .weekday.weekend,.month-day.weekend strong{color:#ff6b6b}
+.bullet.urgent:hover{border-left-color:var(--red)}.bullet.today:hover{border-left-color:var(--green)}.bullet.soon:hover{border-left-color:var(--blue)}.bullet.pending:hover{border-left-color:#dcdcaa}.bullet.done:hover,.bullet.resolved:hover{border-left-color:#aeb3bb}
+@media(hover:none){.bullet:hover{background:#252526;border-top-color:#3c3c3c;border-right-color:#3c3c3c;border-bottom-color:#3c3c3c}.bullet.done:hover,.bullet.resolved:hover{background:#202020}}
 .inline-dialog-actions{display:flex;align-items:center;justify-content:flex-end;flex:1 1 auto;gap:6px;min-width:0;margin:0 0 0 auto!important;padding:0!important;border:0!important;background:transparent!important}.inline-dialog-actions .dialog-left{display:contents}.inline-dialog-actions .btn{padding:6px 9px;font-size:12px;white-space:nowrap}#cancelBulletBtn{margin-right:20px}.compact-action-edit .dialog-head{display:none}.field-label-row{flex-wrap:wrap}.field-label-row>label{margin-right:auto}.trash-list{display:grid;gap:8px}.trash-action-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:58px;padding:10px 12px;border:1px solid #3c3c3c;border-radius:10px;background:#202020;touch-action:pan-y;transition:transform .16s ease,box-shadow .16s ease;overflow:hidden}.trash-action-row div{min-width:0}.trash-action-row strong,.trash-action-row span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.trash-action-row span,.trash-action-row time{color:#969696;font-size:12px}.trash-action-row.swiping-restore{box-shadow:inset -96px 0 rgba(35,134,78,.45)}
 @media(max-width:820px){.month-day{min-height:48px}.calendar-help{font-size:11px}.bullet{grid-template-columns:42px minmax(0,1fr) auto;column-gap:8px}.bullet .action-drag-handle{grid-column:1;grid-row:1;width:42px;margin:-6px 0 -6px -7px}.rollover-row{gap:7px}.rollover-row .priority-label{display:none}.rollover-row .action-drag-handle{width:42px;flex-basis:42px}.inline-dialog-actions{flex:1 1 auto;margin-left:0!important}.inline-dialog-actions .btn{min-height:36px;padding:6px 10px}#bulletDialog.compact-action-edit .dialog-body{padding-top:max(12px,env(safe-area-inset-top))}}
 </style>
@@ -153,7 +156,7 @@ html:has(dialog[open]),body:has(dialog[open]){overflow:hidden;overscroll-behavio
 <script src="./content.js?v=20260906-9"></script>
 <script src="./sync.js?v=20260906-7"></script>
 <script src="./outline.js?v=20260906-7"></script>
-<script src="./journal.js?v=20260906-9"></script>
-<script src="./ui.js?v=20260906-9"></script>
+<script src="./journal.js?v=20260906-10"></script>
+<script src="./ui.js?v=20260906-10"></script>
 </body>
 </html>
