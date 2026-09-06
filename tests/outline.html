@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><title>Outline regression tests</title>
+<pre id="results"></pre><div id="editor"></div><script src="../outline.js"></script>
+<script>
+const root=document.querySelector('#editor'),output=document.querySelector('#results');
+const editor=DriveMemoOutline.create(root,{sanitize:s=>s,decorate:()=>{}});
+const line=()=>root.querySelector('summary');
+function focus(node){node.focus();const r=document.createRange();r.selectNodeContents(node);r.collapse(false);getSelection().removeAllRanges();getSelection().addRange(r);editor.remember()}
+function check(name,fn){try{fn();output.textContent+='PASS '+name+'\n'}catch(e){output.textContent+='FAIL '+name+': '+e.message+'\n'}}
+function assert(ok){if(!ok)throw Error('assertion failed')}
+check('legacy lines and nested bullets',()=>{editor.load('<details open><summary>A</summary><div class="outline-body"><p>B</p><p>C</p></div></details>');assert(root.querySelectorAll('summary').length===3)});
+check('collapse and expand descendants',()=>{focus(line());editor.expand(false);assert([...root.querySelectorAll('details')].every(n=>!n.open));editor.expand(true);assert([...root.querySelectorAll('details')].every(n=>n.open))});
+check('Tab and Shift+Tab',()=>{editor.load('<p>A</p><p>B</p><p>C</p>');focus(root.children[1].firstChild);root.children[1].firstChild.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));assert(root.children.length===2);root.querySelector('.outline-children summary').dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',shiftKey:true,bubbles:true,cancelable:true}));assert(root.children.length===3)});
+check('multi-select move preserves order',()=>{editor.toggleSelection();root.children[1].firstChild.click();root.children[2].firstChild.click();editor.move(-1);assert([...root.children].map(n=>n.textContent).join('')==='BCA');editor.move(1);assert([...root.children].map(n=>n.textContent).join('')==='ABC');editor.toggleSelection()});
+check('ArrowDown and ArrowUp change bullet',()=>{focus(line());line().dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true,cancelable:true}));assert(document.activeElement===root.children[1].firstChild);document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true,cancelable:true}));assert(document.activeElement===line())});
+check('recolor existing text',()=>{focus(line());editor.format('color','#f48771');editor.format('color','#9cdcfe');assert(getComputedStyle(line().querySelector('span span')||line().querySelector('span')).color==='rgb(156, 220, 254)')});
+check('upload placeholder keeps edited description',()=>{focus(line());const pending=editor.placeholder('photo.png'),description=root.children[1].querySelector('span');description.textContent='My description';pending.complete('https://example.com/photo.png');assert(root.children[1].querySelector('a').textContent==='My description');assert(!root.querySelector('.upload-placeholder'))});
+check('cancelled draft does not receive uploaded link',()=>{const pending=editor.placeholder('cancel.png');editor.load('<p>New draft</p>');pending.complete('https://example.com/cancel.png');assert(!root.querySelector('a'))});
+</script>
