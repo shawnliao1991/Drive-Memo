@@ -1,0 +1,10 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const context={window:{},Date};vm.createContext(context);vm.runInContext(fs.readFileSync('content.js','utf8'),context);const c=context.window.DriveMemoContent;
+const a=c.addBullet('',{action:'Original',details:'Original notes'}),b=c.addBullet(a.markdown,{action:'Unrelated'}),session=c.createEditSession();
+let text=c.updateBullet(b.markdown,a.bulletId,{action:'Edited',details:'Typing'});session.track(b.markdown,text);
+text=c.updateBullet(text,b.bulletId,{action:'Remote update'});text=session.rollback(text);
+assert.equal(c.getBullet(text,a.bulletId).action,'Original');assert.equal(c.getBullet(text,a.bulletId).details,'Original notes');assert.equal(c.getBullet(text,b.bulletId).action,'Remote update');
+const fresh=c.createEditSession(),created=c.addBullet(text,{action:'Draft'});fresh.track(text,created.markdown);assert.equal(c.getBullet(fresh.rollback(created.markdown),created.bulletId),null);
+const project=c.convertToProject(b.markdown,b.bulletId),attached=c.assignProject(project,a.bulletId,b.itemId);assert.equal(c.getBullet(attached,a.bulletId).itemId,b.itemId);assert.equal(c.getBullet(attached,a.bulletId).details,'Original notes');
+const concurrent=c.createEditSession(),changed=c.updateBullet(b.markdown,a.bulletId,{details:'Local'});concurrent.track(b.markdown,changed);const remote=c.updateBullet(changed,a.bulletId,{details:'Remote'});assert.equal(c.getBullet(concurrent.rollback(remote),a.bulletId).details,'Remote');
+console.log('PASS cancel restores edited fields, preserves unrelated and newer remote changes, removes new draft, attaches existing project');
