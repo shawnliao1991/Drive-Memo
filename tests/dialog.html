@@ -3,11 +3,12 @@
 <pre id="results"></pre><iframe src="../index.html" title="Editor tests"></iframe>
 <script>
 if(location.search.includes('desktop'))document.querySelector('iframe').style.width='1100px';
-document.querySelector('iframe').addEventListener('load',function(){
+document.querySelector('iframe').addEventListener('load',async function(){
  const w=this.contentWindow,d=this.contentDocument,c=w.DriveMemoContent,out=document.querySelector('#results');
  function check(name,fn){try{if(!fn())throw Error('assertion failed');out.textContent+='PASS '+name+'\n'}catch(e){out.textContent+='FAIL '+name+': '+e.message+'\n'}}
  d.querySelector('[data-action=add-day]').click();
- check('dialog actions sit beside content label',()=>d.querySelector('.field-label-row>.inline-dialog-actions')&&d.querySelector('.inline-dialog-actions #cancelBulletBtn')&&d.querySelector('.inline-dialog-actions [type=submit]'));
+ check('save and cancel are at editor top',()=>d.querySelector('.dialog-head>.dialog-top-actions #cancelBulletBtn')&&d.querySelector('.dialog-head>.dialog-top-actions [type=submit]'));
+ check('complete and delete are at editor end',()=>{const end=d.querySelector('.form-grid>.editor-end-actions');return end&&end.querySelector('#completeBulletBtn')&&end.lastElementChild.id==='deleteBulletBtn'});
  const body=d.querySelector('#bulletDialog .dialog-body'),editor=d.querySelector('#projectRichEditor'),line=editor.querySelector('.outline-line');
  line.textContent='字級測試';line.focus();const r=d.createRange();r.selectNodeContents(line);w.getSelection().removeAllRanges();w.getSelection().addRange(r);line.dispatchEvent(new w.KeyboardEvent('keyup',{bubbles:true}));
  check('background scroll locked',()=>w.getComputedStyle(d.documentElement).overflow==='hidden');
@@ -29,9 +30,9 @@ document.querySelector('iframe').addEventListener('load',function(){
  if(w.innerWidth>820)check('desktop multi-select popup aligns beside its button',()=>{const p=d.querySelector('#multiTools').getBoundingClientRect(),b=d.querySelector('[data-detail-tool=select]').getBoundingClientRect();return Math.abs(b.left-p.right-10)<2&&p.right<=b.left&&p.top<b.bottom&&p.bottom>b.top});
  d.querySelector('[data-detail-tool=select]').click();d.querySelector('[data-detail-tool=select]').click();
  if(w.innerWidth>820)check('desktop multi-select popup stays aligned after reopening',()=>{const p=d.querySelector('#multiTools').getBoundingClientRect(),b=d.querySelector('[data-detail-tool=select]').getBoundingClientRect();return Math.abs(b.left-p.right-10)<2&&p.right<=b.left&&p.top<b.bottom&&p.bottom>b.top});
- if(w.innerWidth<=820)check('mobile date and priority share row',()=>d.querySelector('#actionDateField').getBoundingClientRect().top===d.querySelector('#actionPriorityField').getBoundingClientRect().top);
+ if(w.innerWidth<=820){check('mobile date and priority share row',()=>d.querySelector('#actionDateField').getBoundingClientRect().top===d.querySelector('#actionPriorityField').getBoundingClientRect().top);line.textContent='手機持續輸入';line.dispatchEvent(new w.Event('input',{bubbles:true}));await new Promise(resolve=>setTimeout(resolve,250));check('mobile live sync keeps bullet editable',()=>line.isConnected&&d.querySelector('#projectRichEditor .outline-line')===line);line.dispatchEvent(new w.InputEvent('beforeinput',{inputType:'insertParagraph',bubbles:true,cancelable:true}));check('mobile can add another bullet after typing',()=>d.querySelectorAll('#projectRichEditor .outline-line').length>1)}
  const del=d.querySelector('#deleteBulletBtn');del.classList.remove('hidden');
- if(w.innerWidth<=820)check('mobile delete and save share row',()=>Math.abs(del.getBoundingClientRect().top-d.querySelector('#bulletForm [type=submit]').getBoundingClientRect().top)<2);
+ if(w.innerWidth<=820)check('mobile delete stays in final action row',()=>del.closest('.editor-end-actions')&&d.querySelector('#bulletForm [type=submit]').closest('.dialog-top-actions'));
  d.querySelector('#projectRichEditor .outline-line').click();
  d.querySelector('[data-detail-tool=delete-lines]').click();
  check('delete requires confirmation',()=>d.querySelector('#outlineDeleteDialog').open&&d.querySelector('#projectRichEditor .outline-line'));
@@ -39,8 +40,7 @@ document.querySelector('iframe').addEventListener('load',function(){
  check('cancel delete keeps line',()=>!d.querySelector('#outlineDeleteDialog').open&&d.querySelector('#projectRichEditor .outline-line'));
  d.querySelector('#cancelBulletBtn').click();const project=c.addBullet('',{action:'專案 Action',date:c.localDateKey(),priority:'today'}),store=d.querySelector('#editor');store.value=c.convertToProject(project.markdown,project.bulletId);store.dispatchEvent(new w.Event('input'));d.querySelector(`[data-action=open][data-id="${project.bulletId}"]`).click();
  check('every Action edit title bar removed',()=>d.querySelector('#bulletDialog').classList.contains('compact-action-edit')&&w.getComputedStyle(d.querySelector('#bulletDialog .dialog-head')).display==='none');
- check('project content row owns delete cancel save',()=>{const row=d.querySelector('#bulletDetailsLabel').closest('.field-label-row');return ['deleteBulletBtn','cancelBulletBtn'].every(id=>row.querySelector('#'+id))&&row.querySelector('[type=submit]')});
- check('cancel and save have extra spacing',()=>parseFloat(w.getComputedStyle(d.querySelector('#cancelBulletBtn')).marginRight)>=18);
+ check('project page link sits beside project content',()=>d.querySelector('#actionProjectContent>summary>#goToProjectBtn'));
  d.querySelector('#deleteBulletBtn').click();check('Action deletion requires confirmation',()=>d.querySelector('#deleteActionDialog').open&&!c.getBullet(store.value,project.bulletId).deletedAt);d.querySelector('#cancelDeleteAction').click();check('cancel keeps Action',()=>!d.querySelector('#deleteActionDialog').open&&!c.getBullet(store.value,project.bulletId).deletedAt);d.querySelector('#deleteBulletBtn').click();d.querySelector('#confirmDeleteAction').click();check('confirmed deletion moves Action to trash',()=>!d.querySelector('#bulletDialog').open&&c.getTrash(store.value).some(item=>item.id===project.bulletId));
 });
 </script>

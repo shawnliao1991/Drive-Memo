@@ -1,6 +1,9 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const context={window:{},Date};vm.createContext(context);vm.runInContext(fs.readFileSync('content.js','utf8'),context);const c=context.window.DriveMemoContent;
 const first=c.addBullet('',{title:'客戶、確認需求',action:'客戶、確認需求',details:'Action 備註'});
+const unnamed=c.addBullet('',{title:'',action:'',details:'Quick body',pending:true});
+assert.equal(c.getBullet(unnamed.markdown,unnamed.bulletId).action,'');
+assert.equal(c.getBullet(unnamed.markdown,unnamed.bulletId).title,'');
 let text=c.convertToProject(first.markdown,first.bulletId);
 assert.equal(c.getBullet(text,first.bulletId).details,'Action 備註');
 assert.equal(c.getProjects(text)[0].details,'');
