@@ -13,6 +13,7 @@ document.querySelector('iframe').addEventListener('load',async function(){
  line.textContent='字級測試';line.focus();const r=d.createRange();r.selectNodeContents(line);w.getSelection().removeAllRanges();w.getSelection().addRange(r);line.dispatchEvent(new w.KeyboardEvent('keyup',{bubbles:true}));
  check('background scroll locked',()=>w.getComputedStyle(d.documentElement).overflow==='hidden');
  check('editor owns scroll area',()=>w.getComputedStyle(body).overflowY==='scroll'&&body.scrollHeight>body.clientHeight&&w.getComputedStyle(body).overscrollBehavior==='contain');
+ if(w.innerWidth>820)check('desktop editing tools sit outside the scrollbar',()=>body.getBoundingClientRect().right<d.querySelector('#projectDetailsTools').getBoundingClientRect().left);
  check('disclosure icons',()=>d.querySelector('[data-detail-tool=expand]').textContent==='▼'&&d.querySelector('[data-detail-tool=collapse]').textContent==='▶');
  d.querySelector('[data-detail-tool=sizes]').click();
  check('size popover visible and no dropdown',()=>!d.querySelector('#projectTextSize').classList.contains('hidden')&&!d.querySelector('#projectTextSize select'));

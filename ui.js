@@ -121,7 +121,8 @@ function flushEdit(force=false){if(!editSession)return true;if(uploadingImages){
 function queueEdit(){if(!editSession||!els.bulletDialog.open)return;clearTimeout(editTimer);editTimer=setTimeout(()=>flushEdit(),150)}
 function cancelEdit(){if(uploadingImages){sync.reportStatus("圖片仍在上傳，完成後即可取消","");return}const session=editSession;editSession=null;clearTimeout(editTimer);if(session)mutateContent(markdown=>session.rollback(markdown));closeBulletDialog()}
 function finishEdit(done=false){if(!flushEdit(true))return;if(done&&els.bulletId.value)mutateContent(markdown=>Content.setBulletStatus(markdown,els.bulletId.value,"done"));closeBulletDialog()}
-function showToast(text,id){lastDeletedId=id;els.toastText.textContent=text;els.toast.classList.remove("hidden");clearTimeout(toastTimer);toastTimer=setTimeout(()=>{els.toast.classList.add("hidden");lastDeletedId=null},6000)}
+function showToast(text,id){lastDeletedId=id;els.toastText.textContent=text;els.undoDeleteBtn.classList.remove("hidden");els.toast.classList.remove("hidden");clearTimeout(toastTimer);toastTimer=setTimeout(()=>{els.toast.classList.add("hidden");lastDeletedId=null},6000)}
+function showAutosaveToast(text){lastDeletedId=null;els.toastText.textContent=text;els.undoDeleteBtn.classList.add("hidden");els.toast.classList.remove("hidden");clearTimeout(toastTimer);toastTimer=setTimeout(()=>els.toast.classList.add("hidden"),8000)}
 
 function handleJournalClick(event){
  const target=event.target.closest("[data-action]");if(!target)return;const id=target.dataset.id;
@@ -151,7 +152,7 @@ function closeConflict(){if(els.conflictDialog.open)els.conflictDialog.close()}
 
 const sync=global.DriveMemoSync.create({
  config:global.APP_CONFIG||{},getFileId:()=>els.fileId.value,getImageFolderId:()=>byId("imageFolderId").value,getLocalContent:()=>els.editor.value,getIdentity:()=>identityValue,
- applyContent:content=>{if(els.bulletDialog.open)closeBulletDialog();els.editor.value=content;renderAll()},onStatus:setStatus,onDirty:setDirty,onMeta:setMeta,onIdentity:setIdentity,onConnected:setConnected,onConflict:showConflict,onConflictResolved:closeConflict
+ applyContent:content=>{if(els.bulletDialog.open)closeBulletDialog();els.editor.value=content;renderAll()},onStatus:setStatus,onDirty:setDirty,onMeta:setMeta,onIdentity:setIdentity,onConnected:setConnected,onConflict:showConflict,onConflictResolved:closeConflict,onAutosaveError:showAutosaveToast
 });
 
 
@@ -166,6 +167,7 @@ function clearProjectActionSwipe(){if(projectActionSwipe?.row){projectActionSwip
 function updateProjectActionFromEditor(id,direction){if(uploadingImages)return;const projectId=els.bulletProjectId.value,project=Content.getProjects(els.editor.value).find(value=>value.id===projectId);if(!project)return;let details;try{details=serializeProjectDetails()}catch(error){sync.reportStatus(error.message,"err");return}mutateContent(markdown=>{let next=Content.updateProject(markdown,projectId,{title:els.bulletTitle.value.trim()||project.title,details}),action=Content.getBullet(next,id);if(!action)return next;if(direction==="right")return Content.setBulletStatus(next,id,action.status==="done"?"todo":"done");return Content.softDeleteBullet(next,id)});renderProjectEditorActions(Content.getProjects(els.editor.value).find(value=>value.id===projectId));if(direction==="left")showToast(`已移至垃圾桶：「${project.actions.find(action=>action.id===id)?.action||"Action"}」`,id)}
 function bindEvents(){
  addEventListener("resize",adaptActionEditor);
+ document.addEventListener("pointerdown",sync.userActivity,{passive:true});document.addEventListener("keydown",sync.userActivity);
  els.bulletForm.addEventListener("input",queueEdit);els.bulletForm.addEventListener("change",queueEdit);els.bulletForm.addEventListener("click",queueEdit);
  new MutationObserver(queueEdit).observe(els.projectRichEditor,{subtree:true,childList:true,characterData:true,attributes:true});
  byId("completeBulletBtn").addEventListener("click",()=>finishEdit(true));

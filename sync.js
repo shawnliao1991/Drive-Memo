@@ -4,9 +4,9 @@
 function create(options={}){
  const cfg=options.config||{},noop=()=>{};
  const getFileId=options.getFileId||(()=>""),getLocalContent=options.getLocalContent||(()=>"");
- const applyContent=options.applyContent||noop,onStatus=options.onStatus||noop,onDirty=options.onDirty||noop,onMeta=options.onMeta||noop,onIdentity=options.onIdentity||noop,onConnected=options.onConnected||noop,onConflict=options.onConflict||noop,onConflictResolved=options.onConflictResolved||noop;
- const SYNC_INTERVAL=cfg.SYNC_INTERVAL_MS||5000,AUTOSAVE_DELAY=cfg.AUTOSAVE_DELAY_MS||1200;
- let accessToken=null,tokenExpiresAt=0,tokenClient=null,authInit=null;
+ const applyContent=options.applyContent||noop,onStatus=options.onStatus||noop,onDirty=options.onDirty||noop,onMeta=options.onMeta||noop,onIdentity=options.onIdentity||noop,onConnected=options.onConnected||noop,onConflict=options.onConflict||noop,onConflictResolved=options.onConflictResolved||noop,onAutosaveError=options.onAutosaveError||noop;
+ const SYNC_INTERVAL=cfg.SYNC_INTERVAL_MS||5000,AUTOSAVE_DELAY=cfg.AUTOSAVE_DELAY_MS||1200,TOKEN_RENEW_WINDOW=cfg.TOKEN_RENEW_WINDOW_MS||10*60*1000;
+ let accessToken=null,tokenExpiresAt=0,tokenClient=null,authInit=null,automaticTokenRequest=false,tokenRenewCooldownUntil=0;
  let baseVersion=null,baseContent="",currentMeta=null,localDirty=false,saving=false,saveQueued=false,syncTimer=null,autosaveTimer=null,conflictActive=false,pendingConflict=null;
 
  function setStatus(text,kind=""){onStatus(text,kind)}
@@ -42,17 +42,27 @@ function create(options={}){
  async function fetchDriveImage(fileId){const response=await apiFetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`);if(!response.ok){const text=await response.text();throw new Error(`${response.status} ${text.slice(0,250)}`)}return response.blob()}
  function updateMeta(meta){currentMeta=meta;baseVersion=String(meta.version??"");onMeta(meta)}
 
- function buildTokenClient(){
-  if(tokenClient)return;const clientId=cfg.GOOGLE_CLIENT_ID||"";
-  if(!clientId||clientId.startsWith("PASTE_"))throw new Error("請先在 config.js 填入 Google OAuth Client ID");
-  tokenClient=global.google.accounts.oauth2.initTokenClient({client_id:clientId,scope:"openid email https://www.googleapis.com/auth/drive",error_callback:error=>setStatus(error.type==="popup_failed_to_open"?"登入視窗被阻擋，請允許彈出視窗後再點登入":"登入已取消，請再點登入","err"),callback:async response=>{
-   if(response.error){setStatus(`Google 授權失敗：${response.error}`,"err");return}
-   accessToken=response.access_token;tokenExpiresAt=Date.now()+((response.expires_in||3600)*1000);
-   try{const me=await apiJson("https://www.googleapis.com/oauth2/v3/userinfo"),allowed=(cfg.ALLOWED_EMAIL||"").trim().toLowerCase();if(allowed&&me.email?.toLowerCase()!==allowed){accessToken=null;clearSession();setStatus(`帳號 ${me.email} 不在允許名單內`,"err");return}onIdentity(me.email||"已連接");onConnected(true);storeSession();setStatus("Google 已連接","ok");if(getFileId())await openCurrentFile()}catch(error){clearAuth(`帳號驗證失敗：${error.message}`)}
+function buildTokenClient(){
+ if(tokenClient)return;const clientId=cfg.GOOGLE_CLIENT_ID||"";
+ if(!clientId||clientId.startsWith("PASTE_"))throw new Error("請先在 config.js 填入 Google OAuth Client ID");
+  tokenClient=global.google.accounts.oauth2.initTokenClient({client_id:clientId,scope:"openid email https://www.googleapis.com/auth/drive",error_callback:error=>{if(automaticTokenRequest){automaticTokenRequest=false;tokenRenewCooldownUntil=Date.now()+60000;return}setStatus(error.type==="popup_failed_to_open"?"登入視窗被阻擋，請允許彈出視窗後再點登入":"登入已取消，請再點登入","err")},callback:async response=>{
+   const automatic=automaticTokenRequest;automaticTokenRequest=false;
+   if(response.error){if(automatic){tokenRenewCooldownUntil=Date.now()+60000;return}setStatus(`Google 授權失敗：${response.error}`,"err");return}
+   accessToken=response.access_token;tokenExpiresAt=Date.now()+((response.expires_in||3600)*1000);onConnected(true);storeSession();
+   if(automatic){setStatus("Google 連線已延長","ok");if(localDirty)scheduleAutosave();return}
+   try{const me=await apiJson("https://www.googleapis.com/oauth2/v3/userinfo"),allowed=(cfg.ALLOWED_EMAIL||"").trim().toLowerCase();if(allowed&&me.email?.toLowerCase()!==allowed){accessToken=null;clearSession();setStatus(`帳號 ${me.email} 不在允許名單內`,"err");return}onIdentity(me.email||"已連接");onConnected(true);storeSession();setStatus("Google 已連接","ok")}catch(error){clearAuth(`帳號驗證失敗：${error.message}`);return}
+   try{await resumeAfterLogin()}catch(error){if(error.message!=="AUTH_EXPIRED")setStatus(`重新同步失敗：${error.message}`,"err")}
   }})
  }
 
+ async function resumeAfterLogin(){
+  const id=getFileId().trim();if(!id)return;if(!localDirty)return openCurrentFile();
+  if(baseVersion){setStatus("Google 已重新連接，準備同步本機修改","sync");scheduleAutosave();return}
+  const[meta,cloud]=await Promise.all([fetchMetadata(id),fetchContent(id)]),latestLocal=getLocalContent();if(cloud===latestLocal){baseContent=cloud;updateMeta(meta);setDirty(false);setStatus("已同步","ok");return}showConflict({meta,cloudContent:cloud,localContent:latestLocal})
+ }
+
  function initAuth(retry=false){if(tokenClient)return Promise.resolve();if(authInit)return authInit;authInit=waitForGoogleIdentity(retry).then(buildTokenClient).finally(()=>{authInit=null});return authInit}
+ function userActivity(){if(!accessToken||!tokenClient||automaticTokenRequest||Date.now()<tokenRenewCooldownUntil||tokenExpiresAt-Date.now()>TOKEN_RENEW_WINDOW)return;automaticTokenRequest=true;try{tokenClient.requestAccessToken({prompt:""})}catch{automaticTokenRequest=false;tokenRenewCooldownUntil=Date.now()+60000}}
  function requestLogin(){try{if(global.google?.accounts?.oauth2){buildTokenClient();tokenClient.requestAccessToken({prompt:""});return Promise.resolve()}setStatus("正在載入 Google 登入…","sync");return initAuth(true).then(()=>setStatus("登入已就緒，請再點一次「登入」","ok")).catch(error=>setStatus(error.message,"err"))}catch(error){setStatus(error.message,"err");return Promise.resolve()}}
  function logout(){if(accessToken&&global.google?.accounts?.oauth2)global.google.accounts.oauth2.revoke(accessToken);clearAuth("已登出")}
  function saveFileId(){const id=getFileId().trim();if(id)try{localStorage.setItem("driveMemoFileId",id)}catch{}}
@@ -76,7 +86,7 @@ function create(options={}){
    const response=await apiFetch(`https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(id)}?uploadType=media&fields=id,name,version,modifiedTime,size`,{method:"PATCH",headers:{"Content-Type":"text/markdown; charset=utf-8"},body:contentToSave});
    if(!response.ok){const text=await response.text();throw new Error(`${response.status} ${text.slice(0,250)}`)}
    const meta=await response.json();baseContent=contentToSave;updateMeta(meta);setDirty(getLocalContent()!==baseContent);saveCompleted=true;setStatus(localDirty?"已儲存上一批修改，繼續同步…":"已儲存並同步",localDirty?"sync":"ok")
-  }catch(error){if(error.message!=="AUTH_EXPIRED")setStatus(`儲存失敗：${error.message}`,"err")}
+  }catch(error){const message=error.message==="AUTH_EXPIRED"?"自動儲存失敗：Google Drive 已斷線，修改仍保留在這個瀏覽器，請重新登入":"自動儲存失敗："+error.message;if(error.message!=="AUTH_EXPIRED")setStatus(message,"err");onAutosaveError(message)}
   finally{saving=false;if(saveCompleted&&saveQueued&&localDirty&&!conflictActive){clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{autosaveTimer=null;saveNow()},0)}}
  }
 
@@ -94,7 +104,7 @@ function create(options={}){
  function getDebugSnapshot(){return{baseVersion,baseContent,currentMeta,localDirty,saving,saveQueued,conflictActive}}
  async function initialize(){const restored=restoreSession();try{await initAuth()}catch(error){setStatus(error.message,"err")}if(restored){setStatus("已恢復目前瀏覽器工作階段","ok");if(getFileId())await openCurrentFile()}}
 
- return Object.freeze({initialize,requestLogin,logout,openCurrentFile,syncCheck,localContentChanged,fileIdChanged,resolveUseCloud,resolveKeepLocal,resolveLater,reportStatus,getDebugSnapshot,uploadProjectImage,fetchDriveImage});
+ return Object.freeze({initialize,requestLogin,userActivity,logout,openCurrentFile,syncCheck,localContentChanged,fileIdChanged,resolveUseCloud,resolveKeepLocal,resolveLater,reportStatus,getDebugSnapshot,uploadProjectImage,fetchDriveImage});
 }
 
 global.DriveMemoSync=Object.freeze({create});
