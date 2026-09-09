@@ -8,6 +8,7 @@ function create(options={}){
  const SYNC_INTERVAL=cfg.SYNC_INTERVAL_MS||5000,AUTOSAVE_DELAY=cfg.AUTOSAVE_DELAY_MS||1200,TOKEN_RENEW_WINDOW=cfg.TOKEN_RENEW_WINDOW_MS||10*60*1000;
  let accessToken=null,tokenExpiresAt=0,tokenClient=null,authInit=null,automaticTokenRequest=false,tokenRenewCooldownUntil=0;
  let baseVersion=null,baseContent="",currentMeta=null,localDirty=false,saving=false,saveQueued=false,syncTimer=null,autosaveTimer=null,conflictActive=false,pendingConflict=null;
+ const backend=cfg.AUTH_BACKEND?global.DriveMemoBackendAuth.create({onIdentity,onConnected,onStatus,onReady:async()=>{startSyncLoop();await resumeAfterLogin()}}):null;
 
  function setStatus(text,kind=""){onStatus(text,kind)}
  function setDirty(value){localDirty=value;onDirty(value)}
@@ -20,6 +21,7 @@ function create(options={}){
  async function waitForGoogleIdentity(retry=false){if(global.google?.accounts?.oauth2)return;let script=document.getElementById("googleIdentityScript");if(retry||!script){script?.remove();script=document.createElement("script");script.id="googleIdentityScript";script.src="https://accounts.google.com/gsi/client";script.async=true;script.onerror=()=>{script.dataset.failed="true"};document.head.append(script)}for(let i=0;i<300;i++){if(global.google?.accounts?.oauth2)return;if(script.dataset.failed==="true")throw new Error("Google 登入元件載入失敗，請確認網路後點登入重試");await new Promise(resolve=>setTimeout(resolve,100))}throw new Error("Google 登入元件載入逾時，請點登入重試")}
 
  async function apiFetch(url,fetchOptions={}){
+  if(backend){const headers=new Headers(fetchOptions.headers||{});headers.set("Authorization","Bearer "+await backend.getToken());let response=await fetch(url,{...fetchOptions,headers});if(response.status===401){headers.set("Authorization","Bearer "+await backend.getToken(true));response=await fetch(url,{...fetchOptions,headers})}if(response.status===401)throw Error("AUTH_EXPIRED");return response}
   if(!accessTokenValid()){clearAuth("Google 權限已到期，請點「登入」重新連接");throw new Error("AUTH_EXPIRED")}
   const headers=new Headers(fetchOptions.headers||{});headers.set("Authorization",`Bearer ${accessToken}`);const response=await fetch(url,{...fetchOptions,headers});
   if(response.status===401){clearAuth("Google 權限已到期，請重新連接");throw new Error("AUTH_EXPIRED")}return response
@@ -63,9 +65,9 @@ function buildTokenClient(){
  }
 
  function initAuth(retry=false){if(tokenClient)return Promise.resolve();if(authInit)return authInit;authInit=waitForGoogleIdentity(retry).then(buildTokenClient).finally(()=>{authInit=null});return authInit}
- function userActivity(){if(!accessToken||!tokenClient||automaticTokenRequest||Date.now()<tokenRenewCooldownUntil||tokenExpiresAt-Date.now()>TOKEN_RENEW_WINDOW)return;automaticTokenRequest=true;try{tokenClient.requestAccessToken({prompt:""})}catch{automaticTokenRequest=false;tokenRenewCooldownUntil=Infinity}}
- function requestLogin(){if(automaticTokenRequest)return Promise.resolve();try{if(global.google?.accounts?.oauth2){buildTokenClient();tokenClient.requestAccessToken({prompt:""});return Promise.resolve()}setStatus("正在載入 Google 登入…","sync");return initAuth(true).then(()=>setStatus("登入已就緒，請再點一次「登入」","ok")).catch(error=>setStatus(error.message,"err"))}catch(error){setStatus(error.message,"err");return Promise.resolve()}}
- function logout(){if(accessToken&&global.google?.accounts?.oauth2)global.google.accounts.oauth2.revoke(accessToken);clearAuth("已登出")}
+ function userActivity(){if(backend||!accessToken||!tokenClient||automaticTokenRequest||Date.now()<tokenRenewCooldownUntil||tokenExpiresAt-Date.now()>TOKEN_RENEW_WINDOW)return;automaticTokenRequest=true;try{tokenClient.requestAccessToken({prompt:""})}catch{automaticTokenRequest=false;tokenRenewCooldownUntil=Infinity}}
+ function requestLogin(){if(backend)return backend.login();if(automaticTokenRequest)return Promise.resolve();try{if(global.google?.accounts?.oauth2){buildTokenClient();tokenClient.requestAccessToken({prompt:""});return Promise.resolve()}setStatus("正在載入 Google 登入…","sync");return initAuth(true).then(()=>setStatus("登入已就緒，請再點一次「登入」","ok")).catch(error=>setStatus(error.message,"err"))}catch(error){setStatus(error.message,"err");return Promise.resolve()}}
+ async function logout(){if(backend){await backend.logout();clearAuth("已登出");return}if(accessToken&&global.google?.accounts?.oauth2)global.google.accounts.oauth2.revoke(accessToken);clearAuth("已登出")}
  function saveFileId(){const id=getFileId().trim();if(id)try{localStorage.setItem("driveMemoFileId",id)}catch{}}
  function startSyncLoop(){stopSyncLoop();syncTimer=setInterval(syncCheck,SYNC_INTERVAL)}
 
@@ -92,18 +94,18 @@ function buildTokenClient(){
  }
 
  async function syncCheck(){
-  if(!accessTokenValid()||!getFileId().trim()||saving||conflictActive||document.hidden)return;
+  if(!backend&&!accessTokenValid()||!getFileId().trim()||saving||conflictActive||document.hidden)return;
   try{const meta=await fetchMetadata(getFileId().trim());if(!baseVersion){await openCurrentFile();return}if(String(meta.version)===String(baseVersion))return;setStatus("發現雲端更新…","sync");const cloud=await fetchContent(getFileId().trim()),latestLocal=getLocalContent();if(cloud===latestLocal){baseContent=cloud;setDirty(false);updateMeta(meta);setStatus("已同步","ok");return}if(cloud===baseContent){updateMeta(meta);if(localDirty){setStatus("已確認雲端上一批修改，繼續同步…","sync");scheduleAutosave()}else setStatus("已同步","ok");return}if(!localDirty){applyContent(cloud);baseContent=cloud;updateMeta(meta);setStatus("已自動載入另一裝置的更新","ok");return}showConflict({meta,cloudContent:cloud,localContent:latestLocal})}catch(error){if(error.message!=="AUTH_EXPIRED"){console.warn(error);setStatus("同步檢查暫時失敗，稍後自動重試","err")}}
  }
 
  function localContentChanged(){if(conflictActive)return;if(saving)saveQueued=true;setDirty(getLocalContent()!==baseContent);if(localDirty)scheduleAutosave()}
- function fileIdChanged(){saveFileId();baseVersion=null;baseContent="";setDirty(false);if(accessTokenValid())openCurrentFile()}
+ function fileIdChanged(){saveFileId();baseVersion=null;baseContent="";setDirty(false);if(backend||accessTokenValid())openCurrentFile()}
  function resolveUseCloud(){if(!pendingConflict)return;backupConflict("local-discarded",pendingConflict.localContent);applyContent(pendingConflict.cloudContent);baseContent=pendingConflict.cloudContent;updateMeta(pendingConflict.meta);setDirty(false);conflictActive=false;pendingConflict=null;onConflictResolved();setStatus("已採用雲端版本；本機舊版已留在瀏覽器備份","ok")}
  async function resolveKeepLocal(){if(!pendingConflict)return;backupConflict("cloud-overwritten",pendingConflict.cloudContent);updateMeta(pendingConflict.meta);conflictActive=false;pendingConflict=null;onConflictResolved();setDirty(true);await saveNow({force:true})}
  function resolveLater(){setStatus("衝突尚未處理；自動儲存暫停","err")}
  function reportStatus(text,kind=""){setStatus(text,kind)}
  function getDebugSnapshot(){return{baseVersion,baseContent,currentMeta,localDirty,saving,saveQueued,conflictActive}}
- async function initialize(){const restored=restoreSession();try{await initAuth()}catch(error){setStatus(error.message,"err")}if(restored){setStatus("已恢復目前瀏覽器工作階段","ok");if(getFileId())await openCurrentFile()}}
+ async function initialize(){if(backend){clearSession();if(await backend.initialize()){startSyncLoop();await resumeAfterLogin()}return}const restored=restoreSession();try{await initAuth()}catch(error){setStatus(error.message,"err")}if(restored){setStatus("已恢復目前瀏覽器工作階段","ok");if(getFileId())await openCurrentFile()}}
 
  return Object.freeze({initialize,requestLogin,userActivity,logout,openCurrentFile,syncCheck,localContentChanged,fileIdChanged,resolveUseCloud,resolveKeepLocal,resolveLater,reportStatus,getDebugSnapshot,uploadProjectImage,fetchDriveImage});
 }

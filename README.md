@@ -1,5 +1,7 @@
 # Drive Memo v2
 
+長期自動登入的 Google Cloud 託管版本與設定步驟見 [部署說明](server/DEPLOY.md)。GitHub Pages 仍使用原本短效登入；部署 Cloud Run 後須改用新網址。
+
 ## 新功能
 - 日誌首頁以今天、明天到未來一週的精簡垂直時間軸整理待辦與 Done
 - 原 Bullet 正名為 Action：一般 Action 可獨立存在，也可轉為某個專案底下的專案 Action

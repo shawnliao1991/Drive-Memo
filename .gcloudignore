@@ -1,0 +1,6 @@
+.git
+personal
+tests
+.env
+.env.*
+node_modules
