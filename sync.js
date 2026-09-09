@@ -45,12 +45,13 @@ function create(options={}){
 function buildTokenClient(){
  if(tokenClient)return;const clientId=cfg.GOOGLE_CLIENT_ID||"";
  if(!clientId||clientId.startsWith("PASTE_"))throw new Error("請先在 config.js 填入 Google OAuth Client ID");
-  tokenClient=global.google.accounts.oauth2.initTokenClient({client_id:clientId,scope:"openid email https://www.googleapis.com/auth/drive",error_callback:error=>{if(automaticTokenRequest){automaticTokenRequest=false;tokenRenewCooldownUntil=Date.now()+60000;return}setStatus(error.type==="popup_failed_to_open"?"登入視窗被阻擋，請允許彈出視窗後再點登入":"登入已取消，請再點登入","err")},callback:async response=>{
+  tokenClient=global.google.accounts.oauth2.initTokenClient({client_id:clientId,scope:"openid email https://www.googleapis.com/auth/drive",hint:(cfg.ALLOWED_EMAIL||"").trim(),error_callback:error=>{if(automaticTokenRequest){automaticTokenRequest=false;tokenRenewCooldownUntil=Infinity;return}setStatus(error.type==="popup_failed_to_open"?"登入視窗被阻擋，請允許彈出視窗後再點登入":"登入已取消，請再點登入","err")},callback:async response=>{
    const automatic=automaticTokenRequest;automaticTokenRequest=false;
-   if(response.error){if(automatic){tokenRenewCooldownUntil=Date.now()+60000;return}setStatus(`Google 授權失敗：${response.error}`,"err");return}
-   accessToken=response.access_token;tokenExpiresAt=Date.now()+((response.expires_in||3600)*1000);onConnected(true);storeSession();
-   if(automatic){setStatus("Google 連線已延長","ok");if(localDirty)scheduleAutosave();return}
+   if(response.error){if(automatic){tokenRenewCooldownUntil=Infinity;return}setStatus(`Google 授權失敗：${response.error}`,"err");return}
+   accessToken=response.access_token;tokenExpiresAt=Date.now()+((response.expires_in||3600)*1000);
    try{const me=await apiJson("https://www.googleapis.com/oauth2/v3/userinfo"),allowed=(cfg.ALLOWED_EMAIL||"").trim().toLowerCase();if(allowed&&me.email?.toLowerCase()!==allowed){accessToken=null;clearSession();setStatus(`帳號 ${me.email} 不在允許名單內`,"err");return}onIdentity(me.email||"已連接");onConnected(true);storeSession();setStatus("Google 已連接","ok")}catch(error){clearAuth(`帳號驗證失敗：${error.message}`);return}
+   tokenRenewCooldownUntil=0;if(getFileId())startSyncLoop();
+   if(automatic){setStatus("Google 連線已延長","ok");if(localDirty)scheduleAutosave();return}
    try{await resumeAfterLogin()}catch(error){if(error.message!=="AUTH_EXPIRED")setStatus(`重新同步失敗：${error.message}`,"err")}
   }})
  }
@@ -62,8 +63,8 @@ function buildTokenClient(){
  }
 
  function initAuth(retry=false){if(tokenClient)return Promise.resolve();if(authInit)return authInit;authInit=waitForGoogleIdentity(retry).then(buildTokenClient).finally(()=>{authInit=null});return authInit}
- function userActivity(){if(!accessToken||!tokenClient||automaticTokenRequest||Date.now()<tokenRenewCooldownUntil||tokenExpiresAt-Date.now()>TOKEN_RENEW_WINDOW)return;automaticTokenRequest=true;try{tokenClient.requestAccessToken({prompt:""})}catch{automaticTokenRequest=false;tokenRenewCooldownUntil=Date.now()+60000}}
- function requestLogin(){try{if(global.google?.accounts?.oauth2){buildTokenClient();tokenClient.requestAccessToken({prompt:""});return Promise.resolve()}setStatus("正在載入 Google 登入…","sync");return initAuth(true).then(()=>setStatus("登入已就緒，請再點一次「登入」","ok")).catch(error=>setStatus(error.message,"err"))}catch(error){setStatus(error.message,"err");return Promise.resolve()}}
+ function userActivity(){if(!accessToken||!tokenClient||automaticTokenRequest||Date.now()<tokenRenewCooldownUntil||tokenExpiresAt-Date.now()>TOKEN_RENEW_WINDOW)return;automaticTokenRequest=true;try{tokenClient.requestAccessToken({prompt:""})}catch{automaticTokenRequest=false;tokenRenewCooldownUntil=Infinity}}
+ function requestLogin(){if(automaticTokenRequest)return Promise.resolve();try{if(global.google?.accounts?.oauth2){buildTokenClient();tokenClient.requestAccessToken({prompt:""});return Promise.resolve()}setStatus("正在載入 Google 登入…","sync");return initAuth(true).then(()=>setStatus("登入已就緒，請再點一次「登入」","ok")).catch(error=>setStatus(error.message,"err"))}catch(error){setStatus(error.message,"err");return Promise.resolve()}}
  function logout(){if(accessToken&&global.google?.accounts?.oauth2)global.google.accounts.oauth2.revoke(accessToken);clearAuth("已登出")}
  function saveFileId(){const id=getFileId().trim();if(id)try{localStorage.setItem("driveMemoFileId",id)}catch{}}
  function startSyncLoop(){stopSyncLoop();syncTimer=setInterval(syncCheck,SYNC_INTERVAL)}

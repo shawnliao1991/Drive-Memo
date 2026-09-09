@@ -1,11 +1,12 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 function harness({ready=false,failed=false,storageBlocked=false,delay=0}={}){
- let tick=0,clients=0,popups=0,appends=0,callback;const status=[],script={dataset:{failed:String(failed)},remove(){}};
- const win={},sdk={accounts:{oauth2:{initTokenClient(opts){clients++;callback=opts.callback;return {requestAccessToken(){popups++}}}}}};if(ready)win.google=sdk;
+ let tick=0,clients=0,popups=0,appends=0,callback,errorCallback,now=Date.now();const status=[],script={dataset:{failed:String(failed)},remove(){}};
+ const win={},sdk={accounts:{oauth2:{initTokenClient(opts){clients++;callback=opts.callback;errorCallback=opts.error_callback;return {requestAccessToken(){popups++}}}}}};if(ready)win.google=sdk;
  const storage={getItem(){if(storageBlocked)throw Error('SecurityError');return null},setItem(){if(storageBlocked)throw Error('SecurityError')},removeItem(){if(storageBlocked)throw Error('SecurityError')}};
  const context={window:win,document:{getElementById:()=>script,createElement:()=>({dataset:{}}),head:{append(){appends++;script.dataset.failed='false'}},hidden:false},sessionStorage:storage,localStorage:storage,Headers,Date,URLSearchParams,Blob,setTimeout(fn){tick++;if(delay&&tick>=delay)win.google=sdk;queueMicrotask(fn)},clearTimeout(){},setInterval(){},clearInterval(){},fetch:async()=>({ok:true,status:200,json:async()=>({email:'test@example.com'})})};
+ context.Date=class extends Date{static now(){return now}};
  vm.createContext(context);vm.runInContext(fs.readFileSync('sync.js','utf8'),context);const sync=win.DriveMemoSync.create({config:{GOOGLE_CLIENT_ID:'test-client'},onStatus:text=>status.push(text)});
- return {sync,status,win,sdk,get clients(){return clients},get popups(){return popups},get appends(){return appends},authorize:(expires=3600)=>callback({access_token:'fake-test-token',expires_in:expires})};
+ return {sync,status,win,sdk,get clients(){return clients},get popups(){return popups},get appends(){return appends},advance:ms=>now+=ms,cancel:()=>errorCallback({type:'popup_closed'}),authorize:(expires=3600)=>callback({access_token:'fake-test-token',expires_in:expires})};
 }
 (async()=>{
  const slow=harness({delay:80});await slow.sync.initialize();assert.equal(slow.clients,1);slow.sync.requestLogin();assert.equal(slow.popups,1);console.log('PASS SDK loading longer than old six-second limit');
@@ -14,4 +15,5 @@ function harness({ready=false,failed=false,storageBlocked=false,delay=0}={}){
  const timeout=harness();await timeout.sync.initialize();assert(timeout.status.at(-1).includes('逾時'));timeout.win.google=timeout.sdk;timeout.sync.requestLogin();assert.equal(timeout.popups,1);console.log('PASS late SDK after timeout recovers on login click');
  const concurrent=harness({delay:10});await Promise.all([concurrent.sync.initialize(),concurrent.sync.requestLogin(),concurrent.sync.requestLogin()]);assert.equal(concurrent.clients,1);assert.equal(concurrent.popups,0);console.log('PASS concurrent readiness requests share one initialization');
  const renewal=harness({ready:true});await renewal.sync.initialize();renewal.sync.requestLogin();await renewal.authorize(60);const before=renewal.popups;renewal.sync.userActivity();assert.equal(renewal.popups,before+1);await renewal.authorize();assert(renewal.status.includes('Google 連線已延長'));console.log('PASS active session renews an expiring Google token');
+ const cancelled=harness({ready:true});await cancelled.sync.initialize();cancelled.sync.requestLogin();await cancelled.authorize(600);cancelled.sync.userActivity();const attempts=cancelled.popups;cancelled.sync.requestLogin();assert.equal(cancelled.popups,attempts);cancelled.cancel();cancelled.advance(120000);cancelled.sync.userActivity();assert.equal(cancelled.popups,attempts);cancelled.sync.requestLogin();assert.equal(cancelled.popups,attempts+1);await cancelled.authorize();console.log('PASS cancelled renewal stays quiet and explicit reconnect remains available');
 })().catch(e=>{console.error(e);process.exitCode=1});

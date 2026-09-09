@@ -69,7 +69,11 @@
 - token 到期或浏览器结束会话后，點「登入」
 - Google 登入元件載入失敗或逾時可點登入重試；若仍在載入，看到就緒訊息後再點一次，以直接點擊開啟登入視窗。瀏覽器限制暫存不會中斷初始化，但無法記住工作階段。
 
-若未来要真正长期免登录，需要加一个小型 backend 安全保存 refresh token。
+目前的「續期」仍是 Google 瀏覽器授權流程，可能顯示視窗；取消或被阻擋後不再每分鐘重試，可自行點登入重新連接。重新連接會恢復定期同步，並保留尚未上傳的編輯內容。
+
+OAuth 若設定為 External / Testing，Drive 授權在 7 天後失效。長期自用應在 Google Auth Platform 的 Audience 頁將 Publishing status 改為 In production；這不會延長 access token 本身的有效期限，也不等於通過 Google 驗證。
+
+若要長期免互動重新登入，需要後端 OAuth authorization-code 流程，安全保存 refresh token 並自動換發 access token。Google client secret 與 refresh token 不可放進 GitHub Pages 的公開前端。
 
 ## 同步
 每 5 秒只请求一次 metadata；version 没变就不下载正文。
