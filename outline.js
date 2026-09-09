@@ -13,6 +13,35 @@ function create(root,{sanitize,decorate,onSelectionChange=()=>{}}){
  function block(html=''){const d=makeNode();d.open=true;const s=document.createElement('div');s.className='outline-line';s.setAttribute('role','textbox');s.setAttribute('aria-label','條列文字');s.innerHTML=html||'<br>';d.append(s);return d}
  function restore(html){selected.clear();multi=false;root.classList.remove('selecting');onSelectionChange(false,0);root.replaceChildren();const source=document.createElement('div');source.innerHTML=sanitize(html);function walk(container,target){for(const n of [...container.childNodes]){if(n.nodeType===3){if(n.textContent.trim())target.append(block(n.textContent.replace(/&/g,'&amp;').replace(/</g,'&lt;')));continue}if(n.nodeType!==1)continue;if(n.matches('details')){const summary=n.querySelector(':scope > summary'),d=block(summary?.innerHTML||'');d.open=n.hasAttribute('open');target.append(d);const kids=document.createElement('div');kids.className='outline-children';for(const child of [...n.children])if(child!==summary)walk(child,kids);if(kids.children.length)d.append(kids)}else if(n.matches('ul,ol')||n.classList.contains('outline-children')||n.classList.contains('outline-body'))walk(n,target);else if(n.matches('li')){const copy=n.cloneNode(true);copy.querySelectorAll('ul,ol').forEach(x=>x.remove());const d=block(copy.innerHTML);target.append(d);const kids=document.createElement('div');kids.className='outline-children';for(const list of n.querySelectorAll(':scope > ul,:scope > ol'))walk(list,kids);if(kids.children.length)d.append(kids)}else if(n.matches('p,div')&&n.querySelector('p,div,details,ul,ol'))walk(n,target);else if(n.textContent.trim()||n.querySelector('a')){for(const line of n.innerHTML.split(/<br\s*\/?>/i))target.append(block(line))}}}walk(source,root);if(!root.children.length)root.append(block());decorate(root);saved=null}
  function load(html){restore(html);history.length=0}
+ // Mobile text replacement can unwrap an empty line inside the shared editing host.
+ // Repair only damaged wrappers: reloading HTML would interrupt the IME and lose its caret.
+ function repairLines(){
+  const s=getSelection(),anchor=s?.anchorNode,anchorOffset=s?.anchorOffset,focusNode=s?.focusNode,focusOffset=s?.focusOffset;
+  let changed=false;
+  function wrap(nodes){const n=block();n.firstChild.replaceChildren(...nodes);return n}
+  function walk(container){
+   for(const child of [...container.childNodes]){
+    if(child.nodeType===3&&!child.textContent){child.remove();continue}
+    let node=child;
+    if(!child.matches?.('.outline-node')){node=wrap([]);child.before(node);node.firstChild.append(child);changed=true}
+    let line=node.querySelector(':scope > .outline-line');
+    if(!line){line=block().firstChild;line.replaceChildren();node.prepend(line);changed=true}
+    for(const extra of [...node.childNodes]){
+     if(extra===line)continue;
+     if(extra.matches?.('.outline-children'))walk(extra);
+     else{line.append(extra);changed=true}
+    }
+    if(!line.hasChildNodes())line.append(document.createElement('br'));
+   }
+  }
+  walk(root);
+  if(!root.children.length){root.append(block());focus(root.firstElementChild,false);return}
+  if(changed&&root.contains(anchor)&&root.contains(focusNode)){
+   const limit=n=>n.nodeType===3?n.length:n.childNodes.length;
+   s.setBaseAndExtent(anchor,Math.min(anchorOffset,limit(anchor)),focusNode,Math.min(focusOffset,limit(focusNode)));
+  }
+  remember();
+ }
  function add(){checkpoint();remember();const at=current(),next=block();if(at)at.after(next);else root.append(next);focus(next)}
  function indent(out=false){remember();const targets=multi?selectedRoots():[current()].filter(Boolean);if(!targets.length)return;checkpoint();for(const at of out?[...targets].reverse():targets){if(out){const parent=at.parentElement.closest('.outline-node');if(parent&&root.contains(parent))parent.after(at)}else{let prev=at.previousElementSibling;while(prev&&selected.has(prev))prev=prev.previousElementSibling;if(!prev?.matches('.outline-node'))continue;let kids=prev.querySelector(':scope > .outline-children');if(!kids){kids=document.createElement('div');kids.className='outline-children';prev.append(kids)}kids.append(at);prev.open=true}}if(!multi)focus(targets[0])}
  function format(property,value){checkpoint();if(!saved||!root.contains(saved.commonAncestorContainer))return;const line=(saved.startContainer.nodeType===1?saved.startContainer:saved.startContainer.parentElement).closest('.outline-line');if(!line)return;root.focus({preventScroll:true});const r=saved.cloneRange();if(r.collapsed)r.selectNodeContents(line);if(!line.contains(r.endContainer))return;const span=document.createElement('span');span.style[property]=value;const fragment=r.extractContents();for(const node of fragment.querySelectorAll('*')){node.style[property]='';if(property==='color')node.removeAttribute('color');if(property==='fontSize')node.removeAttribute('size')}span.append(fragment);r.insertNode(span);r.selectNodeContents(span);getSelection().removeAllRanges();getSelection().addRange(r);remember()}
@@ -29,7 +58,9 @@ function create(root,{sanitize,decorate,onSelectionChange=()=>{}}){
  root.addEventListener('beforeinput',e=>{if(e.inputType==='historyUndo'){e.preventDefault();undo();return}if(e.inputType==='insertParagraph'||e.inputType==='insertLineBreak'){e.preventDefault();splitLine();return}checkpoint()});
  root.addEventListener('keydown',async e=>{if(!(e.ctrlKey||e.metaKey)||e.shiftKey)return;const key=e.key.toLowerCase();if(key==='z'){e.preventDefault();undo();return}if(multi&&['c','x','v'].includes(key)){e.preventDefault();if(key==='v')await paste();else await copy(key==='x')}});
  document.addEventListener('selectionchange',remember);
- root.addEventListener('keyup',remember);root.addEventListener('mouseup',remember);root.addEventListener('input',remember);
+ root.addEventListener('keyup',remember);root.addEventListener('mouseup',remember);
+ root.addEventListener('input',e=>{if(e.isComposing)remember();else repairLines()});
+ root.addEventListener('compositionend',repairLines);
  root.addEventListener('click',e=>{const line=(e.target.closest('.outline-line')||current()?.querySelector(':scope > .outline-line'));if(!line)return;if(multi){e.preventDefault();const at=line.parentElement;if(selected.has(at))selected.delete(at);else selected.add(at);selectionChanged();return}const rect=line.getBoundingClientRect();if(e.clientX<rect.left){e.preventDefault();checkpoint();line.parentElement.open=!line.parentElement.open}else remember()});
  root.addEventListener('keydown',e=>{if(e.isComposing)return;const line=(e.target.closest('.outline-line')||current()?.querySelector(':scope > .outline-line'));if(!line)return;remember();if(e.key==='Tab'){e.preventDefault();indent(e.shiftKey)}else if(e.key==='Enter'){e.preventDefault();splitLine()}else if(e.key==='Backspace'&&saved?.collapsed){const before=saved.cloneRange();before.setStart(line,0);if(!before.toString()){e.preventDefault();const lines=[...root.querySelectorAll('.outline-line')].filter(n=>n.getClientRects().length),previousLine=lines[lines.indexOf(line)-1];if(!previousLine)return;checkpoint();const at=line.parentElement,previous=previousLine.parentElement,kids=at.querySelector(':scope > .outline-children');previousLine.append(...line.childNodes);if(kids?.children.length){let destination=previous.querySelector(':scope > .outline-children');if(!destination){destination=document.createElement('div');destination.className='outline-children';previous.append(destination)}destination.append(...kids.children)}at.remove();focus(previous)}}});
  root.addEventListener('paste',e=>{e.preventDefault();checkpoint();const text=e.clipboardData.getData('text/plain'),at=current();if(!at)return;const empty=!at.querySelector(':scope > .outline-line').textContent.trim();if(clipboard?.text===text){insertNodes(copiedNodes(),at,empty);return}if(empty&&text.includes('\n')){insertNodes(nodesFromText(text),at,true);return}const parts=text.replace(/\r/g,'').split('\n');remember();if(!saved)return;const r=saved.cloneRange();r.deleteContents();const t=document.createTextNode(parts.shift());r.insertNode(t);r.setStartAfter(t);r.collapse(true);getSelection().removeAllRanges();getSelection().addRange(r);if(parts.length)insertNodes(nodesFromText(parts.join('\n')),at);else remember()});

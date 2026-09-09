@@ -20,6 +20,36 @@ check('multi indent outdent and undo',()=>{editor.load('<p>A</p><p>B</p><p>C</p>
 check('shared editing host permits cross-line range',()=>{editor.load('<p>A</p><p>B</p>');assert(root.contentEditable==='true');assert(!root.querySelector('[contenteditable=true]'));const r=document.createRange();r.setStart(root.children[0].firstChild.firstChild,0);r.setEnd(root.children[1].firstChild.firstChild,1);getSelection().removeAllRanges();getSelection().addRange(r);assert(getSelection().toString().includes('A')&&getSelection().toString().includes('B'))});
 check('mobile paragraph input leaves caret at empty line start',()=>{focus(line());root.dispatchEvent(new InputEvent('beforeinput',{inputType:'insertParagraph',bubbles:true,cancelable:true}));assert(root.children.length===3);assert(getSelection().anchorNode===root.children[1].firstChild&&getSelection().anchorOffset===0);assert(root.children[1].firstChild.isContentEditable)});
 check('browser inserts text at new empty bullet',()=>{document.execCommand('insertText',false,'新');assert(root.children[1].firstChild.textContent==='新')});
+check('mobile replacement restores bullet and permits repeated newlines',()=>{
+ editor.load('<p>First</p>');focus(line());
+ for(const text of ['第二行','第三行','第四行']){
+  root.dispatchEvent(new InputEvent('beforeinput',{inputType:'insertParagraph',bubbles:true,cancelable:true}));
+  const node=root.lastElementChild,t=document.createTextNode(text);
+  // Model a mobile replacement that removes the empty line wrapper.
+  node.replaceChildren(t);const r=document.createRange();r.setStart(t,t.length);r.collapse(true);getSelection().removeAllRanges();getSelection().addRange(r);
+  root.dispatchEvent(new InputEvent('input',{inputType:'insertReplacementText',bubbles:true}));
+  assert(node.firstChild.matches('.outline-line')&&node.firstChild.textContent===text);
+  assert(getSelection().anchorNode===t&&getSelection().anchorOffset===t.length);
+ }
+ assert(root.children.length===4);const html=editor.html();editor.load(html);assert(root.querySelectorAll('.outline-line').length===4&&root.lastElementChild.textContent==='第四行');
+});
+check('IME wrapper repair waits for composition completion and preserves nesting',()=>{
+ editor.load('<details open><summary>Parent</summary><div class="outline-children"><details open><summary>Child</summary></details></div></details>');
+ const node=root.querySelector('.outline-children').firstChild,t=document.createTextNode('中文');node.replaceChildren(t);
+ const r=document.createRange();r.setStart(t,t.length);r.collapse(true);getSelection().removeAllRanges();getSelection().addRange(r);
+ root.dispatchEvent(new InputEvent('input',{inputType:'insertCompositionText',isComposing:true,bubbles:true}));assert(node.firstChild===t);
+ root.dispatchEvent(new CompositionEvent('compositionend',{data:'中文',bubbles:true}));
+ assert(node.firstChild.matches('.outline-line')&&getSelection().anchorNode===t);
+ root.dispatchEvent(new InputEvent('beforeinput',{inputType:'insertParagraph',bubbles:true,cancelable:true}));
+ assert(root.children.length===1&&root.querySelector('.outline-children').children.length===2);
+ document.execCommand('insertText',false,'下一行');assert(root.querySelector('.outline-children').lastChild.textContent==='下一行');
+});
+check('unwrapped root text regains bullet without losing formatting or caret',()=>{
+ editor.load('');const span=document.createElement('span');span.style.color='red';const t=document.createTextNode('Text');span.append(t);root.replaceChildren(span);
+ const r=document.createRange();r.setStart(t,2);r.collapse(true);getSelection().removeAllRanges();getSelection().addRange(r);
+ root.dispatchEvent(new InputEvent('input',{inputType:'insertText',bubbles:true}));assert(root.firstChild.matches('.outline-node')&&root.firstChild.firstChild.matches('.outline-line'));assert(root.querySelector('span')===span&&getSelection().anchorNode===t&&getSelection().anchorOffset===2);
+ root.dispatchEvent(new InputEvent('beforeinput',{inputType:'insertParagraph',bubbles:true,cancelable:true}));assert(root.children.length===2&&root.firstChild.textContent==='Te'&&root.lastChild.textContent==='xt');
+});
 check('plain editing nodes persist legacy details and restore nesting',()=>{editor.load('<details open><summary>A</summary><div class="outline-children"><details><summary>B</summary></details></div></details>');assert(!root.querySelector('details,summary'));const html=editor.html();assert(html.includes('<details')&&html.includes('<summary>'));editor.load(html);assert(root.querySelectorAll('.outline-node').length===2);assert(!root.querySelector('.outline-children').firstChild.open)});
 check('Backspace at bullet text start joins previous visible line',()=>{editor.load('<details open><summary>4</summary><div class="outline-children"><details open><summary>5</summary><div class="outline-children"><details open><summary>6</summary></details></div></details></div></details>');const childLine=root.querySelector('.outline-children .outline-line');childLine.focus();const r=document.createRange();r.selectNodeContents(childLine);r.collapse(true);getSelection().removeAllRanges();getSelection().addRange(r);editor.remember();childLine.dispatchEvent(new KeyboardEvent('keydown',{key:'Backspace',bubbles:true,cancelable:true}));const parent=root.firstElementChild;assert(parent.querySelector(':scope > .outline-line').textContent==='45');assert(parent.querySelector(':scope > .outline-children > .outline-node > .outline-line').textContent==='6');assert(root.querySelectorAll('.outline-node').length===2)});
 (async()=>{let value='';Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{value=text},readText:async()=>value}});try{editor.load('<p>A</p><p>B</p><p>C</p>');editor.toggleSelection();root.children[1].firstChild.click();root.children[2].firstChild.click();await editor.copy();assert(value==='B\nC');assert(root.classList.contains('selecting')&&!root.querySelector('.outline-selected'));root.children[1].firstChild.click();root.children[2].firstChild.click();await editor.copy(true);assert(root.classList.contains('selecting')&&!root.querySelector('.outline-selected'));assert(root.children.length===1);await editor.paste();assert([...root.children].map(n=>n.textContent).join('')==='ABC');assert(root.classList.contains('selecting'));editor.undo();assert(root.children.length===1);editor.load('<details open><summary>4</summary><div class="outline-children"><details open><summary>5</summary></details><details open><summary>6</summary></details></div></details>');editor.toggleSelection();root.firstElementChild.firstElementChild.click();await editor.copy();assert(root.classList.contains('selecting')&&!root.querySelector('.outline-selected'));editor.add();await editor.paste();assert(root.children.length===2);const pasted=root.lastElementChild;assert(pasted.querySelector(':scope>.outline-line').textContent==='4');assert([...pasted.querySelectorAll(':scope>.outline-children>.outline-node>.outline-line')].map(n=>n.textContent).join('')==='56');output.textContent+='PASS clipboard copy cut paste undo and hierarchy\n'}catch(e){output.textContent+='FAIL clipboard operations: '+e.message+'\n'}})();
