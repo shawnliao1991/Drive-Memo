@@ -3,7 +3,7 @@
 document.querySelector('iframe').addEventListener('load',function(){const w=this.contentWindow,d=this.contentDocument,c=w.DriveMemoContent,out=document.querySelector('#results');function check(name,ok){out.textContent+=(ok?'PASS ':'FAIL ')+name+'\n'}
 const today=c.localDateKey(),a=c.addBullet('',{action:'Old action',date:c.shiftDate(today,-4),priority:'today'}),editor=d.querySelector('#editor');editor.value=a.markdown;editor.dispatchEvent(new w.Event('input'));
 check('highlight matches daily width',d.querySelector('#rolloverPanel').getBoundingClientRect().width===d.querySelector('.agenda-day').getBoundingClientRect().width);
-check('simplified navigation',!d.querySelector('#logoutBtn')&&!d.querySelector('.brand')&&d.querySelector('#loginBtn').textContent==='登入'&&d.querySelector('#debugNav').textContent==='後台');
+check('login and logout navigation',d.querySelector('#logoutBtn').textContent==='登出'&&!d.querySelector('.brand')&&d.querySelector('#loginBtn').textContent==='登入'&&d.querySelector('#debugNav').textContent==='後台');
 check('Quick action and top week reset are available',d.querySelector('#quickMemoBtn').textContent==='Quick action'&&d.querySelector('.journal-head [data-agenda-range=week]'));
 check('mobile navigation stays one row',Math.abs(d.querySelector('#journalNav').getBoundingClientRect().top-d.querySelector('#loginBtn').getBoundingClientRect().top)<10);
 check('mobile calendar visible without horizontal overflow',w.getComputedStyle(d.querySelector('.journal-sidebar')).display!=='none'&&d.documentElement.scrollWidth<=w.innerWidth);

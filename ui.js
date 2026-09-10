@@ -138,20 +138,32 @@ function carrySelected(all=false){const ids=all?[...els.rolloverList.querySelect
 
 function route(){if(els.bulletDialog.classList.contains("docked-action")&&["#projects","#settings","#sync-debug"].includes(location.hash)){if(!flushEdit(true)){location.hash="#journal";return}closeBulletDialog()}const page=location.hash==="#projects"?"projects":["#settings","#sync-debug"].includes(location.hash)?"debug":"journal";els.journalPage.classList.toggle("hidden",page!=="journal");els.projectsPage.classList.toggle("hidden",page!=="projects");els.debugPage.classList.toggle("hidden",page!=="debug");els.journalNav.classList.toggle("active",page==="journal");els.projectsNav.classList.toggle("active",page==="projects");els.debugNav.classList.toggle("active",page==="debug")}
 function setStatus(text,kind=""){els.statusText.textContent=text;els.stateDot.className=`dot ${kind}`.trim()}
-function setConnected(connected){els.loginBtn.disabled=connected;els.openBtn.disabled=!connected;els.syncBtn.disabled=!connected}
+function setConnected(connected){els.loginBtn.disabled=connected;els.openBtn.disabled=false;els.syncBtn.disabled=!connected}
 function setIdentity(value){identityValue=value;els.identity.textContent=value}
 function setMeta(meta){const d=new Date(meta?.modifiedTime||""),stamp=Number.isNaN(d.getTime())?"":`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}:${String(d.getSeconds()).padStart(2,"0")}`;els.fileMeta.textContent=meta?.name?meta.name+(stamp?" · "+stamp:""):""}
 function setDirty(dirty){els.dirtyState.textContent=dirty?"有尚未同步的修改":""}
 
-function diffSummary(local,cloud){
- if(!global.Diff?.diffLines)return"本機與雲端內容不同，請選擇保留哪一版。";
- return global.Diff.diffLines(cloud,local).slice(0,80).map(part=>`<div class="${part.added?"diff-add":part.removed?"diff-del":"diff-same"}">${escapeHtml(part.value)}</div>`).join("")
+let mergePlan=null;
+function conflictValue(value,field){
+ if(value===undefined||value===null||value==='')return '<span class="muted">（空白／已移除）</span>';
+ if(field==='details')return renderProjectDetails(value);
+ if(field==='record')return `<strong>${value.deletedAt||value.archivedAt?'已刪除／封存':'保留項目'}</strong><p>${escapeHtml(value.action||value.title||'未命名')}</p>${renderProjectDetails(value.details||'')}`;
+ if(typeof value==='object')return escapeHtml(Object.entries(value).map(([key,v])=>`${key}: ${v}`).join('\n'));
+ const names={todo:'未完成',done:'已完成',migrated:'已順延',open:'進行中',closed:'已結案',task:'一般 Action',project:'專案',true:'是',false:'否',...priorityNames};
+ return escapeHtml(names[String(value)]||value);
 }
-function showConflict(data){els.diffView.innerHTML=diffSummary(data.localContent,data.cloudContent);els.localConflict.textContent=data.localContent;els.cloudConflict.textContent=data.cloudContent;els.conflictDialog.showModal()}
-function closeConflict(){if(els.conflictDialog.open)els.conflictDialog.close()}
+function showConflict(data){
+ flushEdit();mergePlan=global.DriveMemoMerge.prepare(data.baseContent||'',data.localContent,data.cloudContent);
+ byId('reviewConflictBtn').classList.remove('hidden');
+ els.diffView.textContent=mergePlan.conflicts.length?`共有 ${mergePlan.conflicts.length} 項衝突，請逐項選擇；其他不衝突的修改會一併保留。`:'兩邊修改沒有重疊，可以合併保留。';
+ byId('mergeChoices').innerHTML=mergePlan.conflicts.map(c=>`<fieldset class="merge-choice"><legend>${escapeHtml(c.label)}</legend><div class="diff-grid">${['local','cloud'].map(side=>`<label><input type="radio" name="merge-${c.id}" value="${side}" data-merge-id="${c.id}">保留${side==='local'?'本機':'雲端'}<div class="diff-pane">${conflictValue(c[side],c.field)}</div></label>`).join('')}</div>${['details','legacyMarkdown'].includes(c.field)?`<label><input type="radio" name="merge-${c.id}" value="both" data-merge-id="${c.id}">保留兩邊筆記（本機在前，雲端接在後）</label>`:''}</fieldset>`).join('');
+ byId('mergeError').textContent='';if(!els.conflictDialog.open)els.conflictDialog.showModal();
+}
+function closeConflict(){if(els.conflictDialog.open)els.conflictDialog.close();byId('reviewConflictBtn').classList.add('hidden')}
+function exportLocalBackup(){flushEdit();const blob=new Blob([els.editor.value],{type:'text/markdown;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`Drive-Memo-backup-${Content.localDateKey()}.md`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 
 const sync=global.DriveMemoSync.create({
- config:global.APP_CONFIG||{},getFileId:()=>els.fileId.value,getImageFolderId:()=>byId("imageFolderId").value,getLocalContent:()=>els.editor.value,getIdentity:()=>identityValue,
+ config:global.APP_CONFIG||{},getFileId:()=>els.fileId.value,getImageFolderId:()=>byId("imageFolderId").value,getLocalContent:()=>els.editor.value,getIdentity:()=>identityValue,beforeRemoteApply:()=>flushEdit(),
  applyContent:content=>{if(els.bulletDialog.open)closeBulletDialog();els.editor.value=content;renderAll()},onStatus:setStatus,onDirty:setDirty,onMeta:setMeta,onIdentity:setIdentity,onConnected:setConnected,onConflict:showConflict,onConflictResolved:closeConflict,onAutosaveError:showAutosaveToast
 });
 
@@ -195,7 +207,14 @@ function bindEvents(){
 
  els.deleteBulletBtn.addEventListener("click",()=>{if(els.bulletId.value)byId("deleteActionDialog").showModal()});byId("cancelDeleteAction").addEventListener("click",()=>byId("deleteActionDialog").close());byId("confirmDeleteAction").addEventListener("click",()=>{const id=els.bulletId.value,title=els.bulletAction.value.trim()||"Action";if(!id)return;byId("deleteActionDialog").close();mutateContent(markdown=>Content.softDeleteBullet(markdown,id));closeBulletDialog();showToast(`已移至垃圾桶：「${title}」`,id)});els.undoDeleteBtn.addEventListener("click",()=>{if(!lastDeletedId)return;mutateContent(markdown=>Content.restoreBullet(markdown,lastDeletedId));lastDeletedId=null;els.toast.classList.add("hidden")});
  els.editor.addEventListener("input",()=>{renderAll();sync.localContentChanged()});els.fileId.addEventListener("change",()=>sync.fileIdChanged());els.loginBtn.addEventListener("click",()=>sync.requestLogin());els.openBtn.addEventListener("click",()=>sync.openCurrentFile());els.syncBtn.addEventListener("click",()=>sync.syncCheck());
- els.laterBtn.addEventListener("click",()=>{sync.resolveLater();closeConflict()});els.cloudBtn.addEventListener("click",()=>sync.resolveUseCloud());els.localBtn.addEventListener("click",()=>sync.resolveKeepLocal());
+ byId('logoutBtn').addEventListener('click',()=>{flushEdit();sync.logout()});
+ byId('exportBackupBtn').addEventListener('click',exportLocalBackup);
+ byId('reviewConflictBtn').addEventListener('click',()=>sync.reviewConflict());
+ byId('mergeBtn').addEventListener('click',async()=>{try{const choices=Object.fromEntries([...byId('mergeChoices').querySelectorAll('input:checked')].map(n=>[n.dataset.mergeId,n.value]));await sync.resolveMerged(mergePlan.build(choices))}catch(error){byId('mergeError').textContent=error.message}});
+ els.conflictDialog.addEventListener('cancel',()=>sync.resolveLater());
+ els.laterBtn.addEventListener("click",()=>{sync.resolveLater();els.conflictDialog.close()});els.cloudBtn.addEventListener("click",()=>sync.resolveUseCloud());els.localBtn.addEventListener("click",()=>sync.resolveKeepLocal().catch(error=>{byId("mergeError").textContent=error.message}));
+ global.addEventListener('pagehide',()=>{flushEdit();sync.persistLocal()});
+ document.addEventListener('visibilitychange',()=>{if(document.hidden){flushEdit();sync.persistLocal()}});
 }
 
 function readSetting(key){try{return localStorage.getItem(key)||""}catch{return ""}}

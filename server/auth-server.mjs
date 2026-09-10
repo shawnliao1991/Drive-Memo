@@ -36,7 +36,7 @@ export function createHandler({origin,clientId,clientSecret,allowedEmail,store,f
    await store.set(id,{...record,refreshToken:result.refresh_token||record.refreshToken,expires:Date.now()+ttl});tokens.set(id,value);return value})();
   refreshes.set(id,promise);try{return await promise}finally{refreshes.delete(id)}
  }
- const files=new Set(['index.html','config.js','app.js','backend-auth.js','sync.js','ui.js','content.js','outline.js','journal.js','sw.js','manifest.webmanifest','icon-192.png','icon-512.png','apple-touch-icon.png']);
+ const files=new Set(['index.html','config.js','app.js','backend-auth.js','sync.js','ui.js','content.js','merge.js','outline.js','journal.js','sw.js','manifest.webmanifest','icon-192.png','icon-512.png','apple-touch-icon.png']);
  return async function handler(req,res){
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Frame-Options','DENY');
   try{
