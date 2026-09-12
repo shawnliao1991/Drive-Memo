@@ -105,7 +105,7 @@ function openBulletDialog(id="",projectId="",editProject=false,initialDate=selec
  if(!editProject){els.bulletAction.required=false;if(bullet)els.bulletAction.value=bullet.action||""}
  els.bulletHistoryField.classList.toggle("hidden",!bullet||editProject||!project);els.bulletHistory.querySelectorAll(".history-action").forEach(node=>{if(!node.textContent.trim())node.textContent=ACTION_FALLBACK});
  if(quick){els.bulletAction.value="";els.bulletDialogTitle.textContent="Quick action"}
- byId("completeBulletBtn").classList.toggle("hidden",editProject);els.convertProjectBtn.classList.toggle("hidden",project||editProject);editFingerprint=JSON.stringify(readEditData());editSession=Content.createEditSession();
+ els.bulletDialogTitle.classList.toggle("hidden",editProject||(!bullet&&!quick));byId("completeBulletBtn").classList.toggle("hidden",editProject);els.convertProjectBtn.classList.toggle("hidden",project||editProject);editFingerprint=JSON.stringify(readEditData());editSession=Content.createEditSession();
 }
 const dialogHome=els.bulletDialog.parentElement;
 let dockPageScroll=0,dockSurface=null;
