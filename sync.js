@@ -6,7 +6,7 @@ function create(options={}){
  const getFileId=options.getFileId||(()=>""),getLocalContent=options.getLocalContent||(()=>"");
  const applyContent=options.applyContent||noop,onStatus=options.onStatus||noop,onDirty=options.onDirty||noop,onMeta=options.onMeta||noop,onIdentity=options.onIdentity||noop,onConnected=options.onConnected||noop,onConflict=options.onConflict||noop,onConflictResolved=options.onConflictResolved||noop,onAutosaveError=options.onAutosaveError||noop;
  const SYNC_INTERVAL=cfg.SYNC_INTERVAL_MS||5000,AUTOSAVE_DELAY=cfg.AUTOSAVE_DELAY_MS||1200,TOKEN_RENEW_WINDOW=cfg.TOKEN_RENEW_WINDOW_MS||10*60*1000;
- let accessToken=null,tokenExpiresAt=0,tokenClient=null,authInit=null,automaticTokenRequest=false,tokenRenewCooldownUntil=0;
+ let accessToken=null,tokenExpiresAt=0,tokenClient=null,authInit=null,automaticTokenRequest=false,automaticTokenReason="",tokenRenewCooldownUntil=0;
  let baseVersion=null,baseContent="",currentMeta=null,localDirty=false,saving=false,saveQueued=false,syncTimer=null,autosaveTimer=null,conflictActive=false,pendingConflict=null;
  let activeFileId=getFileId().trim(),epoch=0,loggedOut=false,storageFailed=false;
  const offline=()=>global.navigator?.onLine===false;
@@ -54,13 +54,14 @@ function create(options={}){
 function buildTokenClient(){
  if(tokenClient)return;const clientId=cfg.GOOGLE_CLIENT_ID||"";
  if(!clientId||clientId.startsWith("PASTE_"))throw new Error("請先在 config.js 填入 Google OAuth Client ID");
-  tokenClient=global.google.accounts.oauth2.initTokenClient({client_id:clientId,scope:"openid email https://www.googleapis.com/auth/drive",hint:(cfg.ALLOWED_EMAIL||"").trim(),error_callback:error=>{if(automaticTokenRequest){automaticTokenRequest=false;tokenRenewCooldownUntil=Infinity;return}setStatus(error.type==="popup_failed_to_open"?"登入視窗被阻擋，請允許彈出視窗後再點登入":"登入已取消，請再點登入","err")},callback:async response=>{
-   if(loggedOut)return;const automatic=automaticTokenRequest;automaticTokenRequest=false;
-   if(response.error){if(automatic){tokenRenewCooldownUntil=Infinity;return}setStatus(`Google 授權失敗：${response.error}`,"err");return}
+  tokenClient=global.google.accounts.oauth2.initTokenClient({client_id:clientId,scope:"openid email https://www.googleapis.com/auth/drive",hint:(cfg.ALLOWED_EMAIL||"").trim(),error_callback:error=>{if(automaticTokenRequest){const reason=automaticTokenReason;automaticTokenRequest=false;automaticTokenReason="";tokenRenewCooldownUntil=reason==="renewal"?Infinity:Date.now()+30000;if(reason==="login")setStatus("自動登入需要瀏覽器允許；可點「登入」立即重試","");return}setStatus(error.type==="popup_failed_to_open"?"登入視窗被阻擋，請允許彈出視窗後再點登入":"登入已取消，請再點登入","err")},callback:async response=>{
+   if(loggedOut)return;const automatic=automaticTokenRequest,reason=automaticTokenReason;automaticTokenRequest=false;automaticTokenReason="";
+   if(response.error){if(automatic){tokenRenewCooldownUntil=reason==="renewal"?Infinity:Date.now()+30000;if(reason==="login")setStatus("自動登入需要瀏覽器允許；可點「登入」立即重試","");return}setStatus(`Google 授權失敗：${response.error}`,"err");return}
    accessToken=response.access_token;tokenExpiresAt=Date.now()+((response.expires_in||3600)*1000);
    try{const me=await apiJson("https://www.googleapis.com/oauth2/v3/userinfo"),allowed=(cfg.ALLOWED_EMAIL||"").trim().toLowerCase();if(allowed&&me.email?.toLowerCase()!==allowed){accessToken=null;clearSession();setStatus(`帳號 ${me.email} 不在允許名單內`,"err");return}onIdentity(me.email||"已連接");onConnected(true);storeSession();setStatus("Google 已連接","ok")}catch(error){clearAuth(`帳號驗證失敗：${error.message}`);return}
    tokenRenewCooldownUntil=0;if(getFileId())startSyncLoop();
-   if(automatic){setStatus("Google 連線已延長","ok");if(localDirty)scheduleAutosave();return}
+   if(automatic&&reason==="renewal"){setStatus("Google 連線已延長","ok");if(localDirty)scheduleAutosave();return}
+   if(automatic)setStatus("已自動登入 Google","ok");
    try{await resumeAfterLogin()}catch(error){if(error.message!=="AUTH_EXPIRED")setStatus(`重新同步失敗：${error.message}`,"err")}
   }})
  }
@@ -73,9 +74,11 @@ function buildTokenClient(){
  }
 
  function initAuth(retry=false){if(tokenClient)return Promise.resolve();if(authInit)return authInit;authInit=waitForGoogleIdentity(retry).then(buildTokenClient).finally(()=>{authInit=null});return authInit}
- function userActivity(){if(loggedOut||offline()||backend||!accessToken||!tokenClient||automaticTokenRequest||Date.now()<tokenRenewCooldownUntil||tokenExpiresAt-Date.now()>TOKEN_RENEW_WINDOW)return;automaticTokenRequest=true;try{tokenClient.requestAccessToken({prompt:""})}catch{automaticTokenRequest=false;tokenRenewCooldownUntil=Infinity}}
- function requestLogin(){loggedOut=false;try{localStorage.removeItem("driveMemoLoggedOut")}catch{}if(backend)return backend.login();if(automaticTokenRequest)return Promise.resolve();try{if(global.google?.accounts?.oauth2){buildTokenClient();tokenClient.requestAccessToken({prompt:""});return Promise.resolve()}setStatus("正在載入 Google 登入…","sync");return initAuth(true).then(()=>setStatus("登入已就緒，請再點一次「登入」","ok")).catch(error=>setStatus(error.message,"err"))}catch(error){setStatus(error.message,"err");return Promise.resolve()}}
- async function logout(){const token=accessToken;persistLocal();loggedOut=true;epoch++;automaticTokenRequest=false;clearTimeout(autosaveTimer);autosaveTimer=null;try{localStorage.setItem("driveMemoLoggedOut","true")}catch{}clearAuth("已登出；本機筆記已保留，可繼續離線編輯");try{if(backend)await backend.logout();else if(token&&global.google?.accounts?.oauth2)global.google.accounts.oauth2.revoke(token)}catch{setStatus("已停止本機連線並保留筆記；伺服器登出未完成，連網後可再按登出","")}}
+ function requestAutomaticToken(reason="login"){if(loggedOut||offline()||backend||automaticTokenRequest||Date.now()<tokenRenewCooldownUntil||reason==="login"&&accessTokenValid()||!tokenClient)return false;automaticTokenRequest=true;automaticTokenReason=reason;try{tokenClient.requestAccessToken({prompt:""});return true}catch{automaticTokenRequest=false;automaticTokenReason="";tokenRenewCooldownUntil=reason==="renewal"?Infinity:Date.now()+30000;return false}}
+ async function tryAutomaticLogin(){if(loggedOut||offline()||backend||accessTokenValid()||automaticTokenRequest||Date.now()<tokenRenewCooldownUntil)return false;try{await initAuth();if(requestAutomaticToken("login")){setStatus("正在自動登入 Google…","sync");return true}}catch(error){setStatus(error.message,"err")}return false}
+ function userActivity(){if(loggedOut||offline()||backend||automaticTokenRequest||Date.now()<tokenRenewCooldownUntil)return;if(!accessToken){tryAutomaticLogin();return}if(!tokenClient||tokenExpiresAt-Date.now()>TOKEN_RENEW_WINDOW)return;requestAutomaticToken("renewal")}
+ function requestLogin(){loggedOut=false;tokenRenewCooldownUntil=0;try{localStorage.removeItem("driveMemoLoggedOut")}catch{}if(backend)return backend.login();if(automaticTokenRequest)return Promise.resolve();try{if(global.google?.accounts?.oauth2){buildTokenClient();tokenClient.requestAccessToken({prompt:""});return Promise.resolve()}setStatus("正在載入 Google 登入…","sync");return initAuth(true).then(()=>setStatus("登入已就緒，請再點一次「登入」","ok")).catch(error=>setStatus(error.message,"err"))}catch(error){setStatus(error.message,"err");return Promise.resolve()}}
+ async function logout(){const token=accessToken;persistLocal();loggedOut=true;epoch++;automaticTokenRequest=false;automaticTokenReason="";clearTimeout(autosaveTimer);autosaveTimer=null;try{localStorage.setItem("driveMemoLoggedOut","true")}catch{}clearAuth("已登出；本機筆記已保留，可繼續離線編輯");try{if(backend)await backend.logout();else if(token&&global.google?.accounts?.oauth2)global.google.accounts.oauth2.revoke(token)}catch{setStatus("已停止本機連線並保留筆記；伺服器登出未完成，連網後可再按登出","")}}
  function saveFileId(){const id=getFileId().trim();if(id)try{localStorage.setItem("driveMemoFileId",id)}catch{}}
  function startSyncLoop(){stopSyncLoop();if(!getFileId().trim()||loggedOut)return;syncTimer=setInterval(syncCheck,SYNC_INTERVAL)}
 
@@ -84,7 +87,7 @@ function buildTokenClient(){
   if(offline()||loggedOut){setStatus("目前使用本機副本，可繼續編輯","");return}
   const id=getFileId().trim();if(!id)return setStatus("請先輸入 Drive File ID","err");saveFileId();setStatus("讀取 Drive…","sync");
   const openEpoch=epoch;
-  try{const{meta,content}=await readCloudSnapshot(id);if(openEpoch!==epoch)return;options.beforeRemoteApply?.();if(localDirty){if(getLocalContent()!==content){showConflict({meta,cloudContent:content,localContent:getLocalContent()});return}}applyContent(content);baseContent=content;setDirty(false);updateMeta(meta);setStatus("已同步","ok");startSyncLoop()}catch(error){if(!["AUTH_EXPIRED","STALE_REQUEST"].includes(error.message))setStatus("無法連接 Drive；可繼續使用本機筆記，稍後重試","err")}
+  try{const{meta,content}=await readCloudSnapshot(id);if(openEpoch!==epoch)return;options.beforeRemoteApply?.();if(localDirty){if(getLocalContent()!==content){showConflict({meta,cloudContent:content,localContent:getLocalContent()});return}}applyContent(content);baseContent=content;setDirty(false);updateMeta(meta);setStatus("已同步","ok");startSyncLoop()}catch(error){if(error.message==="AUTH_EXPIRED")tryAutomaticLogin();else if(error.message!=="STALE_REQUEST")setStatus("無法連接 Drive；可繼續使用本機筆記，稍後重試","err")}
  }
 
  function showConflict(data){conflictActive=true;pendingConflict={...data,baseContent};persistLocal();clearTimeout(autosaveTimer);autosaveTimer=null;setStatus("同步衝突：等待你逐項合併","err");onConflict(pendingConflict)}
@@ -103,14 +106,14 @@ function buildTokenClient(){
    if(response.status===412){const snapshot=await readCloudSnapshot(id);if(saveEpoch===epoch)showConflict({meta:snapshot.meta,cloudContent:snapshot.content,localContent:getLocalContent()});return}
    if(!response.ok){const text=await response.text();throw new Error(`${response.status} ${text.slice(0,250)}`)}
    const meta=await response.json();if(saveEpoch!==epoch)return;baseContent=contentToSave;updateMeta(meta);setDirty(getLocalContent()!==baseContent);saveCompleted=true;setStatus(localDirty?"已儲存上一批修改，繼續同步…":"已儲存並同步",localDirty?"sync":"ok")
-  }catch(error){if(error.message==="STALE_REQUEST"||saveEpoch!==epoch)return;persistLocal();const message=error.message==="AUTH_EXPIRED"?"自動儲存失敗：Google Drive 已斷線，修改仍保留在這個瀏覽器，請重新登入":"本機已儲存；雲端同步失敗，連線恢復後重試："+error.message;if(error.message!=="AUTH_EXPIRED")setStatus(message,"err");onAutosaveError(message)}
+  }catch(error){if(error.message==="STALE_REQUEST"||saveEpoch!==epoch)return;persistLocal();const message=error.message==="AUTH_EXPIRED"?"自動儲存失敗：Google Drive 已斷線，修改仍保留在這個瀏覽器，正在自動登入":"本機已儲存；雲端同步失敗，連線恢復後重試："+error.message;if(error.message==="AUTH_EXPIRED")tryAutomaticLogin();else setStatus(message,"err");onAutosaveError(message)}
   finally{saving=false;if(saveCompleted&&saveQueued&&localDirty&&!conflictActive){clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{autosaveTimer=null;saveNow()},0)}}
  }
 
  async function syncCheck(){
   if(offline()||loggedOut)return;
   if(!backend&&!accessTokenValid()||!getFileId().trim()||saving||conflictActive||document.hidden)return;
-  const checkEpoch=epoch;try{let meta=await fetchMetadata(getFileId().trim());if(checkEpoch!==epoch)return;if(!baseVersion){await openCurrentFile();return}if(String(meta.version)===String(baseVersion)){if(localDirty)scheduleAutosave();return}setStatus("發現雲端更新…","sync");const snapshot=await readCloudSnapshot(getFileId().trim(),meta),cloud=snapshot.content,latestLocal=getLocalContent();meta=snapshot.meta;if(checkEpoch!==epoch)return;if(cloud===latestLocal){baseContent=cloud;setDirty(false);updateMeta(meta);setStatus("已同步","ok");return}if(cloud===baseContent){updateMeta(meta);if(localDirty){setStatus("已確認雲端上一批修改，繼續同步…","sync");scheduleAutosave()}else setStatus("已同步","ok");return}options.beforeRemoteApply?.();if(!localDirty){applyContent(cloud);baseContent=cloud;updateMeta(meta);setStatus("已自動載入另一裝置的更新","ok");return}showConflict({meta,cloudContent:cloud,localContent:getLocalContent()})}catch(error){if(checkEpoch===epoch&&!["AUTH_EXPIRED","STALE_REQUEST"].includes(error.message)){console.warn(error);setStatus("同步檢查暫時失敗，稍後自動重試","err")}}
+  const checkEpoch=epoch;try{let meta=await fetchMetadata(getFileId().trim());if(checkEpoch!==epoch)return;if(!baseVersion){await openCurrentFile();return}if(String(meta.version)===String(baseVersion)){if(localDirty)scheduleAutosave();return}setStatus("發現雲端更新…","sync");const snapshot=await readCloudSnapshot(getFileId().trim(),meta),cloud=snapshot.content,latestLocal=getLocalContent();meta=snapshot.meta;if(checkEpoch!==epoch)return;if(cloud===latestLocal){baseContent=cloud;setDirty(false);updateMeta(meta);setStatus("已同步","ok");return}if(cloud===baseContent){updateMeta(meta);if(localDirty){setStatus("已確認雲端上一批修改，繼續同步…","sync");scheduleAutosave()}else setStatus("已同步","ok");return}options.beforeRemoteApply?.();if(!localDirty){applyContent(cloud);baseContent=cloud;updateMeta(meta);setStatus("已自動載入另一裝置的更新","ok");return}showConflict({meta,cloudContent:cloud,localContent:getLocalContent()})}catch(error){if(checkEpoch!==epoch||error.message==="STALE_REQUEST")return;if(error.message==="AUTH_EXPIRED")tryAutomaticLogin();else{console.warn(error);setStatus("同步檢查暫時失敗，稍後自動重試","err")}}
  }
 
  function localContentChanged(){if(saving)saveQueued=true;setDirty(getLocalContent()!==baseContent);if(conflictActive){pendingConflict.localContent=getLocalContent();return}if(localDirty)scheduleAutosave()}
@@ -124,14 +127,14 @@ function buildTokenClient(){
  async function initialize(){
   restoreLocal();try{loggedOut=localStorage.getItem("driveMemoLoggedOut")==="true"}catch{}
   global.addEventListener?.("offline",()=>{persistLocal();setStatus("離線模式：筆記儲存在本機","")});
-  global.addEventListener?.("online",()=>{if(loggedOut)return;startSyncLoop();if(backend||accessTokenValid())resumeAfterLogin().catch(()=>setStatus("本機筆記已保留，等待雲端連線恢復", ""));else setStatus("網路已恢復，請登入以同步本機筆記","")});
+  global.addEventListener?.("online",()=>{if(loggedOut)return;tokenRenewCooldownUntil=0;startSyncLoop();if(backend||accessTokenValid())resumeAfterLogin().catch(()=>setStatus("本機筆記已保留，等待雲端連線恢復", ""));else tryAutomaticLogin()});
   global.addEventListener?.("pagehide",persistLocal);
   if(loggedOut){clearAuth("已登出；本機筆記可繼續編輯");return}
   const restored=backend?false:restoreSession();
   if(offline()){setStatus("離線模式：已載入本機筆記","");return}
   if(backend){clearSession();const connected=await backend.initialize();if(loggedOut)return;startSyncLoop();if(connected)await resumeAfterLogin();return}
   try{await initAuth()}catch(error){setStatus(error.message,"err")}
-  if(restored){startSyncLoop();if(getFileId())await resumeAfterLogin()}
+  if(restored){startSyncLoop();if(getFileId())await resumeAfterLogin()}else await tryAutomaticLogin()
  }
 
  return Object.freeze({initialize,requestLogin,userActivity,logout,openCurrentFile,syncCheck,localContentChanged,fileIdChanged,resolveUseCloud,resolveKeepLocal,resolveMerged,reviewConflict,persistLocal,resolveLater,reportStatus,getDebugSnapshot,uploadProjectImage,fetchDriveImage});
