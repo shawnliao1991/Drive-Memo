@@ -36,7 +36,7 @@ export function createHandler({origin,clientId,clientSecret,allowedEmail,store,f
    await store.set(id,{...record,refreshToken:result.refresh_token||record.refreshToken,expires:Date.now()+ttl});tokens.set(id,value);return value})();
   refreshes.set(id,promise);try{return await promise}finally{refreshes.delete(id)}
  }
- const files=new Set(['index.html','config.js','app.js','backend-auth.js','sync.js','ui.js','content.js','merge.js','outline.js','journal.js','sw.js','manifest.webmanifest','icon-192.png','icon-512.png','apple-touch-icon.png']);
+ const files=new Set(['index.html','config.js','app.js','backend-auth.js','sync.js','ui.js','content.js','merge.js','outline.js','journal.js','sw.js','manifest.webmanifest','favicon.ico','favicon-16.png','favicon-32.png','icon-192.png','icon-512.png','apple-touch-icon.png']);
  return async function handler(req,res){
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Frame-Options','DENY');
   try{
@@ -78,7 +78,7 @@ export function createHandler({origin,clientId,clientSecret,allowedEmail,store,f
    const name=url.pathname==='/'?'index.html':url.pathname.slice(1);
    if(!files.has(name))return json(res,404,{error:'NOT_FOUND'});
    if(name==='config.js'){res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8'});return res.end('window.APP_CONFIG='+JSON.stringify({AUTH_BACKEND:true,GOOGLE_CLIENT_ID:clientId,ALLOWED_EMAIL:allowedEmail,SYNC_INTERVAL_MS:5000,AUTOSAVE_DELAY_MS:1200})+';')}
-   const types={'.html':'text/html','.js':'text/javascript','.png':'image/png','.webmanifest':'application/manifest+json'};
+   const types={'.html':'text/html','.js':'text/javascript','.png':'image/png','.ico':'image/x-icon','.webmanifest':'application/manifest+json'};
    const body=await readFile(path.join(root,name));res.writeHead(200,{'Content-Type':(types[path.extname(name)]||'application/octet-stream')});res.end(req.method==='HEAD'?undefined:body);
   }catch{json(res,503,{error:'SERVICE_UNAVAILABLE'})}
  };

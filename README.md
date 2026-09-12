@@ -55,7 +55,7 @@
 - `app.js`：只供舊版快取頁面轉接三大模組，不放應用功能
 
 ## GitHub Pages 升级
-1. 上傳／覆蓋 index.html、app.js、sync.js、content.js、outline.js、journal.js、ui.js、manifest.webmanifest、sw.js 與三個 icon 檔案。
+1. 上傳／覆蓋 index.html、app.js、sync.js、content.js、outline.js、journal.js、ui.js、manifest.webmanifest、sw.js、favicon 與 app icon 檔案。
 2. config.js 请填回你原本的 GOOGLE_CLIENT_ID 与 ALLOWED_EMAIL。
 3. 保留：
    SYNC_INTERVAL_MS: 5000

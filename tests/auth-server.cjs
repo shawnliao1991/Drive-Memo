@@ -28,6 +28,7 @@ const assert=require('node:assert/strict');
  googleError='invalid_grant';assert.equal((await call(handler,'/auth/token','POST',{...headers,'x-drive-memo-refresh':'1'})).status,401);assert.equal(records.size,0);
  for(const file of ['/.git/config','/server/auth-server.mjs','/personal/tokens.json'])assert.equal((await call(handler,file)).status,404);
  assert(!(await call(handler,'/config.js')).body.includes('secret'));
+ const favicon=await call(handler,'/favicon.ico');assert.equal(favicon.status,200);assert.equal(favicon.headers['content-type'],'image/x-icon');assert(favicon.body.length>100);
  // Firestore values are encrypted, readable after service restart, and tamper checked.
  let payload;const firestoreFetch=async(url,options)=>{if(url.startsWith('http://metadata'))return{ok:true,json:async()=>({access_token:'service',expires_in:3600})};if(options.method==='PATCH'){payload=JSON.parse(options.body);return{ok:true}}return{ok:true,json:async()=>payload}};
  const key=Buffer.alloc(32,1),db=createFirestoreStore('test-project',key,firestoreFetch),value={refreshToken:'sensitive-refresh',expires:Date.now()+100000};
