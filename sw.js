@@ -1,4 +1,4 @@
-const CACHE_NAME="drive-memo-v3-shell-41";
+const CACHE_NAME="drive-memo-v3-shell-42";
 const APP_SHELL=["./","./index.html","./content.js?v=20260908-1","./merge.js?v=20260911-1","./backend-auth.js?v=20260911-1","./sync.js?v=20260912-1","./outline.js?v=20260909-3","./journal.js?v=20260912-1","./ui.js?v=20260912-2","./reminder-test.js?v=20260913-1","./config.js","./manifest.webmanifest","./favicon.ico","./favicon-16.png","./favicon-32.png","./icon-192.png","./icon-512.png","./apple-touch-icon.png"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(APP_SHELL)));self.skipWaiting()});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))));self.clients.claim()});
