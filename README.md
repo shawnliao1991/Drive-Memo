@@ -1,5 +1,7 @@
 # Drive Memo v2
 
+獨立手機 App 專案位於 [mobile-app/](mobile-app/README.md)，包含 Android／iOS 原生專案並共用現有功能；目前為開發版，安裝與 Google 原生登入設定請見該資料夾說明。
+
 長期自動登入的 Google Cloud 託管版本與設定步驟見 [部署說明](server/DEPLOY.md)。GitHub Pages 仍使用原本短效登入；部署 Cloud Run 後須改用新網址。
 
 ## 新功能

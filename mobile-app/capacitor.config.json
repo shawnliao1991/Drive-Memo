@@ -1,0 +1,11 @@
+{
+  "appId": "com.shawnliao.drivememo",
+  "appName": "Drive Memo",
+  "webDir": "dist",
+  "backgroundColor": "#1e1e1e",
+  "plugins": {
+    "SocialLogin": {
+      "providers": { "google": true, "facebook": false, "apple": false, "twitter": false }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.tools/
+native.config.json
+android/.gradle/
+android/local.properties
+android/**/build/
+ios/App/Pods/
+ios/App/build/
+*.keystore
+*.jks
