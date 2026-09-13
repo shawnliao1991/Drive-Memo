@@ -29,7 +29,7 @@ function mount(doc){
   try{
    const transfer=read();
    report("已嘗試開啟捷徑；網頁無法確認提醒是否建立。請在 iPhone 檢查標題、時間與「緊急」設定。再次按下會再建立一筆測試提醒。");
-   global.location.href=transfer.url;
+   const link=doc.createElement("a");link.href=transfer.url;link.target="_blank";link.rel="noopener";link.hidden=true;doc.body.append(link);link.click();link.remove();
   }catch(error){report(error.message)}
  });
  doc.getElementById("reminderTestCopy").addEventListener("click",async()=>{

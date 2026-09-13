@@ -228,11 +228,12 @@ html:has(dialog[open]),body:has(dialog[open]){overflow:hidden;overscroll-behavio
    <li>加入「從輸入取得辭典」（Get Dictionary from Input），輸入選「捷徑輸入」。</li>
    <li>加入「取得辭典值」（Get Dictionary Value），鍵填 <code>title</code>，來源選步驟 1 的辭典。將輸出變數重新命名為「測試標題」。</li>
    <li>再加入「取得辭典值」，鍵填 <code>dueAt</code>，來源也要選步驟 1 的辭典，不是上一個步驟的標題。</li>
-   <li>加入「從輸入取得日期」（Get Dates from Input），輸入選步驟 3 的值。</li>
-   <li>加入「新增提醒事項」（Add New Reminder）：標題選步驟 2 的「測試標題」，列表選「Drive Memo 測試」。開啟時間提示，日期選步驟 4 的日期。若有「緊急」開關，將它開啟。</li>
+   <li>加入「從輸入取得日期」（Get Dates from Input），輸入選步驟 3 的 <code>dueAt</code> 值。這個動作的輸出圖示是紅色日曆，後面要使用它。</li>
+   <li>加入「新增提醒事項」（Add New Reminder）：標題選步驟 2 的 <code>title</code> 值，列表選「Drive Memo 測試」。點開藍色「提示」與下方展開箭頭，把「觸發」改成步驟 4 輸出的<strong>紅色日曆「日期」</strong>，不要選橘色的「辭典值」。若有「緊急」開關，將它開啟。</li>
    <li>最後加入「顯示結果」（Show Result），內容選步驟 5 新增的提醒事項，方便檢查是否寫入。</li>
   </ol>
   <p>儲存後回到此頁，按「五分鐘後」，再按「在 iPhone 執行測試捷徑」。首次執行請允許捷徑存取提醒事項。各步驟名稱可能因手機語言不同而略有差異。</p>
+  <p><strong>看到「未提供提示位置」：</strong>表示「觸發」仍接到橘色的原始「辭典值」，系統誤把它當成位置。請刪除「新增提醒事項」動作後重新加入，再將「觸發」指定為上一步紅色日曆的「日期」。</p>
   <p><strong>若捷徑裡沒有「緊急」選項：</strong>先完成一般提醒寫入，再到提醒事項的日期與時間設定手動開啟「緊急」。這樣仍可分別驗證資料傳送與離線鬧鐘，尚不能算全自動設定成功。</p>
  </details>
  <details><summary>第二步：驗證離線鬧鐘</summary>
@@ -251,6 +252,6 @@ html:has(dialog[open]),body:has(dialog[open]){overflow:hidden;overscroll-behavio
 <style>
 .reminder-test h2{margin:0 0 10px}.reminder-test p,.reminder-test li{line-height:1.65}.reminder-test details{margin-top:16px}.reminder-test summary{cursor:pointer;font-weight:600}.reminder-test pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#1e1e1e;padding:12px;border-radius:8px}.reminder-test a{color:#9cdcfe}.reminder-test .form-grid{margin:14px 0}.reminder-test input{min-width:0;max-width:100%}.reminder-test li{margin:8px 0}.reminder-test code{overflow-wrap:anywhere}
 </style>
-<script src="./reminder-test.js?v=20260912-1"></script>
+<script src="./reminder-test.js?v=20260913-1"></script>
 </body>
 </html>
