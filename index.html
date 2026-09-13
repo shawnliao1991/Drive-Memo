@@ -219,7 +219,7 @@ html:has(dialog[open]),body:has(dialog[open]){overflow:hidden;overscroll-behavio
    <div class="field"><label for="reminderTestTitle">測試標題</label><input id="reminderTestTitle" type="text" maxlength="160" required value="Drive Memo 離線提醒測試"></div>
    <div class="field"><label for="reminderTestTime">提醒時間（目前裝置時區）</label><input id="reminderTestTime" type="datetime-local" required></div>
   </div>
-  <div class="row"><button id="reminderTestLater" type="button" class="btn">五分鐘後</button><button type="submit" class="btn primary">在 iPhone 執行測試捷徑</button><button id="reminderTestCopy" type="button" class="btn">複製測試資料</button></div>
+  <div class="row"><button id="reminderTestLater" type="button" class="btn">五分鐘後</button><a id="reminderTestLaunch" class="btn primary" tabindex="0" style="text-decoration:none;cursor:pointer">在 iPhone 執行測試捷徑</a><button id="reminderTestCopy" type="button" class="btn">複製測試資料</button></div>
  </form>
  <p id="reminderTestStatus" class="muted" role="status" aria-live="polite"></p>
  <details open><summary>第一次使用：建立接收捷徑</summary>
@@ -252,6 +252,6 @@ html:has(dialog[open]),body:has(dialog[open]){overflow:hidden;overscroll-behavio
 <style>
 .reminder-test h2{margin:0 0 10px}.reminder-test p,.reminder-test li{line-height:1.65}.reminder-test details{margin-top:16px}.reminder-test summary{cursor:pointer;font-weight:600}.reminder-test pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#1e1e1e;padding:12px;border-radius:8px}.reminder-test a{color:#9cdcfe}.reminder-test .form-grid{margin:14px 0}.reminder-test input{min-width:0;max-width:100%}.reminder-test li{margin:8px 0}.reminder-test code{overflow-wrap:anywhere}
 </style>
-<script src="./reminder-test.js?v=20260913-1"></script>
+<script src="./reminder-test.js?v=20260913-2"></script>
 </body>
 </html>

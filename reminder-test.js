@@ -17,20 +17,21 @@ function mount(doc){
  const template=doc.getElementById("reminderTestTemplate"),settings=doc.querySelector("#debugPage .settings");
  if(template&&settings&&!doc.getElementById("reminderTestForm"))settings.after(template.content.cloneNode(true));
  const form=doc.getElementById("reminderTestForm");if(!form)return;
- const title=doc.getElementById("reminderTestTitle"),time=doc.getElementById("reminderTestTime"),status=doc.getElementById("reminderTestStatus"),preview=doc.getElementById("reminderTestPreview");
+ const title=doc.getElementById("reminderTestTitle"),time=doc.getElementById("reminderTestTime"),status=doc.getElementById("reminderTestStatus"),preview=doc.getElementById("reminderTestPreview"),launch=doc.getElementById("reminderTestLaunch");
  const report=text=>{status.textContent=text};
  const read=()=>buildTransfer(title.value,time.value);
- function refresh(){try{preview.textContent=JSON.stringify(read().data,null,2)}catch{preview.textContent="填妥標題與未來時間後，這裡會顯示交給捷徑的資料。"}}
+ function refresh(){try{const transfer=read();preview.textContent=JSON.stringify(transfer.data,null,2);launch.href=transfer.url}catch{launch.removeAttribute("href");preview.textContent="填妥標題與未來時間後，這裡會顯示交給捷徑的資料。"}}
  function resetTime(){time.value=localInput(new Date(Date.now()+5*60000));report("待測試。請先完成下方的一次性捷徑設定。");refresh()}
  form.addEventListener("input",()=>{report("資料已修改，尚未交給捷徑。");refresh()});
  doc.getElementById("reminderTestLater").addEventListener("click",resetTime);
- form.addEventListener("submit",event=>{
-  event.preventDefault();
+ form.addEventListener("submit",event=>event.preventDefault());
+ launch.addEventListener("click",event=>{
   try{
+   if(!form.reportValidity()){event.preventDefault();return}
    const transfer=read();
+   launch.href=transfer.url;
    report("已嘗試開啟捷徑；網頁無法確認提醒是否建立。請在 iPhone 檢查標題、時間與「緊急」設定。再次按下會再建立一筆測試提醒。");
-   const link=doc.createElement("a");link.href=transfer.url;link.target="_blank";link.rel="noopener";link.hidden=true;doc.body.append(link);link.click();link.remove();
-  }catch(error){report(error.message)}
+  }catch(error){event.preventDefault();launch.removeAttribute("href");report(error.message)}
  });
  doc.getElementById("reminderTestCopy").addEventListener("click",async()=>{
   try{
