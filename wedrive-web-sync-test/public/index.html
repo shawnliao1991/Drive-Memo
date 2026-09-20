@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>微盤 WEB 同步驗證</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #101318; color: #edf1f7; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; }
+    main { width: min(720px, calc(100% - 32px)); }
+    .card { background: #191f29; border: 1px solid #334055; border-radius: 16px; padding: 24px; box-shadow: 0 16px 48px #0006; }
+    h1 { margin-top: 0; font-size: 1.55rem; }
+    p { color: #b9c4d3; line-height: 1.65; }
+    .row { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
+    button { border: 0; border-radius: 10px; padding: 11px 16px; font: inherit; cursor: pointer; background: #4385f5; color: white; }
+    button.secondary { background: #394457; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    pre { min-height: 150px; overflow: auto; white-space: pre-wrap; background: #0c0f14; border-radius: 10px; padding: 16px; color: #bfe0ff; }
+    .ok { color: #69d39a; } .warn { color: #ffcc66; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>企業微信微盤·WEB 同步驗證</h1>
+    <p>憑證只留在後端。前端透過同網域 API 測試列出檔案，不會直接接觸 Corp Secret 或 access token。</p>
+    <p id="status">正在檢查設定…</p>
+    <div class="row">
+      <button id="probe">執行唯讀連線測試</button>
+      <button id="upload" class="secondary" disabled>上傳一份測試檔</button>
+    </div>
+    <pre id="output">尚未執行。</pre>
+  </main>
+  <script>
+    const statusEl = document.querySelector("#status");
+    const output = document.querySelector("#output");
+    const probe = document.querySelector("#probe");
+    const upload = document.querySelector("#upload");
+
+    async function api(path, options = {}) {
+      const response = await fetch(path, { method: "POST", ...options });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
+      return result;
+    }
+
+    fetch("/api/status").then(response => response.json()).then(state => {
+      statusEl.className = state.configured ? "ok" : "warn";
+      statusEl.textContent = state.configured
+        ? `後端設定完整；寫入測試${state.writeEnabled ? "已開啟" : "已鎖定"}。`
+        : "尚未提供完整的後端環境變數。";
+      probe.disabled = !state.configured;
+      upload.disabled = !state.configured || !state.writeEnabled;
+    });
+
+    probe.addEventListener("click", async () => run(async () => api("/api/probe")));
+    upload.addEventListener("click", async () => run(async () => api("/api/upload-test", {
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: `Drive Memo WEB 同步測試\n${new Date().toISOString()}\n` })
+    })));
+
+    async function run(action) {
+      output.textContent = "執行中…";
+      try { output.textContent = JSON.stringify(await action(), null, 2); }
+      catch (error) { output.textContent = `失敗：${error.message}`; }
+    }
+  </script>
+</body>
+</html>

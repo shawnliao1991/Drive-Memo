@@ -1,0 +1,13 @@
+{
+  "name": "wedrive-web-sync-test",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test",
+    "probe:network": "node scripts/network-probe.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
