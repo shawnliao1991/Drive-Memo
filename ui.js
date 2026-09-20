@@ -4,7 +4,7 @@
 const Content=global.DriveMemoContent;
 const byId=id=>document.getElementById(id);
 const els={
- journalNav:byId("journalNav"),projectsNav:byId("projectsNav"),debugNav:byId("debugNav"),journalPage:byId("journalPage"),projectsPage:byId("projectsPage"),debugPage:byId("debugPage"),projectsList:byId("projectsList"),
+ journalNav:byId("journalNav"),projectsNav:byId("projectsNav"),passwordsNav:byId("passwordsNav"),debugNav:byId("debugNav"),journalPage:byId("journalPage"),projectsPage:byId("projectsPage"),passwordsPage:byId("passwordsPage"),debugPage:byId("debugPage"),projectsList:byId("projectsList"),
  loginBtn:byId("loginBtn"),openBtn:byId("openBtn"),syncBtn:byId("syncBtn"),
  fileId:byId("fileId"),editor:byId("editor"),statusText:byId("statusText"),stateDot:byId("stateDot"),
  fileMeta:byId("fileMeta"),dirtyState:byId("dirtyState"),identity:byId("identity"),addBulletBtn:byId("addBulletBtn"),agenda:byId("agenda"),
@@ -136,9 +136,9 @@ function handleProjectsClick(event){const target=event.target.closest("[data-act
 function batchHighlight(action){const ids=[...els.rolloverList.querySelectorAll("input:checked")].map(n=>n.value);if(!ids.length)return;mutateContent(markdown=>Content.batchHighlight(markdown,ids,action))}
 function carrySelected(all=false){const ids=all?[...els.rolloverList.querySelectorAll("input")].map(input=>input.value):[...els.rolloverList.querySelectorAll("input:checked")].map(input=>input.value);if(!ids.length){sync.reportStatus("請先勾選要順延的項目","");return}mutateContent(markdown=>Content.carryForward(markdown,ids,Content.localDateKey()))}
 
-function route(){if(dockSurface&&(location.hash==="#projects"?"projects":["#settings","#sync-debug"].includes(location.hash)?"debug":"journal")!==dockSurface.page){if(!flushEdit(true)){location.hash="#"+dockSurface.page;return}closeBulletDialog()}const page=location.hash==="#projects"?"projects":["#settings","#sync-debug"].includes(location.hash)?"debug":"journal";els.journalPage.classList.toggle("hidden",page!=="journal");els.projectsPage.classList.toggle("hidden",page!=="projects");els.debugPage.classList.toggle("hidden",page!=="debug");els.journalNav.classList.toggle("active",page==="journal");els.projectsNav.classList.toggle("active",page==="projects");els.debugNav.classList.toggle("active",page==="debug")}
+function route(){const page=location.hash==="#projects"?"projects":location.hash==="#passwords"?"passwords":["#settings","#sync-debug"].includes(location.hash)?"debug":"journal";if(dockSurface&&page!==dockSurface.page){if(!flushEdit(true)){location.hash="#"+dockSurface.page;return}closeBulletDialog()}els.journalPage.classList.toggle("hidden",page!=="journal");els.projectsPage.classList.toggle("hidden",page!=="projects");els.passwordsPage.classList.toggle("hidden",page!=="passwords");els.debugPage.classList.toggle("hidden",page!=="debug");els.journalNav.classList.toggle("active",page==="journal");els.projectsNav.classList.toggle("active",page==="projects");els.passwordsNav.classList.toggle("active",page==="passwords");els.debugNav.classList.toggle("active",page==="debug");if(page==="passwords")passwordTools?.activate()}
 function setStatus(text,kind=""){els.statusText.textContent=text;els.stateDot.className=`dot ${kind}`.trim()}
-function setConnected(connected){els.loginBtn.disabled=connected;els.openBtn.disabled=false;els.syncBtn.disabled=!connected}
+function setConnected(connected){els.loginBtn.disabled=connected;els.openBtn.disabled=false;els.syncBtn.disabled=!connected;if(connected)passwordTools?.connected()}
 function setIdentity(value){identityValue=value;els.identity.textContent=value}
 function setMeta(meta){const d=new Date(meta?.modifiedTime||""),stamp=Number.isNaN(d.getTime())?"":`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}:${String(d.getSeconds()).padStart(2,"0")}`;els.fileMeta.textContent=meta?.name?meta.name+(stamp?" · "+stamp:""):""}
 function setDirty(dirty){els.dirtyState.textContent=dirty?"有尚未同步的修改":""}
@@ -166,6 +166,7 @@ const sync=global.DriveMemoSync.create({
  config:global.APP_CONFIG||{},getFileId:()=>els.fileId.value,getImageFolderId:()=>byId("imageFolderId").value,getLocalContent:()=>els.editor.value,getIdentity:()=>identityValue,beforeRemoteApply:()=>flushEdit(),
  applyContent:content=>{if(els.bulletDialog.open)closeBulletDialog();els.editor.value=content;renderAll()},onStatus:setStatus,onDirty:setDirty,onMeta:setMeta,onIdentity:setIdentity,onConnected:setConnected,onConflict:showConflict,onConflictResolved:closeConflict,onAutosaveError:showAutosaveToast
 });
+let passwordTools=global.DriveMemoPasswords.create({cloud:sync,onFileIdChange:value=>writeSetting("driveMemoPasswordFileId",value)});
 
 
 let editorPopover=null;
@@ -222,7 +223,7 @@ function bindEvents(){
 
 function readSetting(key){try{return localStorage.getItem(key)||""}catch{return ""}}
 function writeSetting(key,value){try{localStorage.setItem(key,value)}catch{}}
-function initialize(){byId("imageFolderId").value=readSetting("driveMemoImageFolderId")||"";byId("imageFolderId").addEventListener("change",()=>writeSetting("driveMemoImageFolderId",byId("imageFolderId").value.trim()));els.fileId.value=readSetting("driveMemoFileId")||"";bindEvents();route();renderAll();sync.initialize().catch(error=>setStatus(`初始化失敗：${error.message}`,"err"));if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js").catch(()=>{})}
+function initialize(){byId("imageFolderId").value=readSetting("driveMemoImageFolderId")||"";byId("imageFolderId").addEventListener("change",()=>writeSetting("driveMemoImageFolderId",byId("imageFolderId").value.trim()));els.fileId.value=readSetting("driveMemoFileId")||"";byId("passwordFileId").value=readSetting("driveMemoPasswordFileId")||"";passwordTools.initialize();bindEvents();route();renderAll();sync.initialize().catch(error=>setStatus(`初始化失敗：${error.message}`,"err"));if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js").catch(()=>{})}
 
 initialize();
 global.DriveMemoUI=Object.freeze({renderAll,sync});

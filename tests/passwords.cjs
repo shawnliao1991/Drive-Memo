@@ -1,0 +1,12 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const context={window:{crypto:{randomUUID:(()=>{let index=0;return()=>`id-${++index}`})()}},URL};vm.createContext(context);vm.runInContext(fs.readFileSync('passwords.js','utf8'),context);const Passwords=context.window.DriveMemoPasswords;
+let data=Passwords.emptyData();assert.equal(data.columns.length,4);assert.equal(data.columns.map(column=>column.title).join(','),'工作,個人,財務,其他');
+let added=Passwords.addSite(data,'column-2',{name:'Example',url:'example.com'});data=added.data;assert.equal(data.columns[1].sites[0].url,'https://example.com/');assert.equal(Passwords.findSite(data,added.siteId).site.name,'Example');
+assert.equal(Passwords.normalizeUrl('javascript:alert(1)'),'');
+let credential=Passwords.upsertCredential(data,added.siteId,{name:'主要帳號',account:'user@example.com',password:'secret',note:'個人使用'});data=credential.data;assert.equal(Passwords.findSite(data,added.siteId).site.credentials[0].password,'secret');assert.equal(Passwords.findSite(data,added.siteId).site.credentials.length,1);
+data=Passwords.upsertCredential(data,added.siteId,{name:'更新名稱',account:'new',password:'changed',note:''},credential.credentialId).data;assert.equal(Passwords.findSite(data,added.siteId).site.credentials[0].name,'更新名稱');
+data=Passwords.updateSite(data,added.siteId,{name:'Moved',url:'https://example.org/login',columnId:'column-4'});assert.equal(data.columns[1].sites.length,0);assert.equal(data.columns[3].sites[0].name,'Moved');
+const roundTrip=Passwords.parse(Passwords.serialize(data));assert.equal(roundTrip.columns.length,4);assert.equal(roundTrip.columns[3].sites[0].credentials[0].account,'new');
+data=Passwords.removeCredential(data,added.siteId,credential.credentialId);assert.equal(Passwords.findSite(data,added.siteId).site.credentials.length,0);data=Passwords.removeSite(data,added.siteId);assert.equal(Passwords.findSite(data,added.siteId),null);
+const legacy=Passwords.parse('{"columns":[{"title":"自訂","sites":[{"name":"A","credentials":[{"name":"N","password":"P"}]}]}]}');assert.equal(legacy.columns.length,4);assert.equal(legacy.columns[0].title,'自訂');assert.equal(legacy.columns[0].sites[0].credentials[0].password,'P');
+console.log('PASS password board four columns, website URLs, credential CRUD and serialization');

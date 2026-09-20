@@ -1,0 +1,5 @@
+const fs=require('node:fs'),assert=require('node:assert/strict');const html=fs.readFileSync('index.html','utf8'),script=fs.readFileSync('passwords.js','utf8'),sw=fs.readFileSync('sw.js','utf8');
+for(const id of ['passwordsNav','passwordsPage','passwordBoard','passwordDetailHost','passwordDetailDialog','passwordFileId','passwordSiteDialog','credentialDialog','passwordConflictDialog'])assert(html.includes(`id="${id}"`),`missing ${id}`);
+assert(html.indexOf('passwords.js?v=20260920-1')<html.indexOf('ui.js?v=20260920-1'));assert(sw.includes('passwords.js?v=20260920-1'));assert(html.includes('@media(max-width:820px)')&&html.includes('.password-detail-host{display:none}'));
+assert.equal((script.match(/class="password-record-row"/g)||[]).length,4);assert(script.includes('target="_blank"')&&script.includes('rel="noopener noreferrer"'));assert(script.includes('cloud.readCloudFile')&&script.includes('cloud.writeCloudFile'));
+console.log('PASS password page navigation, desktop/mobile layout, four-row cards and separate cloud sync wiring');
