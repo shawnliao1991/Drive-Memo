@@ -7,7 +7,7 @@ const app = fileURLToPath(new URL('../', import.meta.url));
 const root = path.resolve(app, '..');
 const output = path.join(app, 'dist');
 await mkdir(output, { recursive: true });
-const assets = ['config.js', 'content.js', 'merge.js', 'backend-auth.js', 'sync.js', 'outline.js', 'journal.js', 'ui.js', 'reminder-test.js', 'manifest.webmanifest', 'favicon.ico', 'favicon-16.png', 'favicon-32.png', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
+const assets = ['config.js', 'content.js', 'merge.js', 'backend-auth.js', 'sync.js', 'outline.js', 'journal.js', 'passwords.js', 'ui.js', 'reminder-test.js', 'manifest.webmanifest', 'favicon.ico', 'favicon-16.png', 'favicon-32.png', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 for (const file of assets) await copyFile(path.join(root, file), path.join(output, file));
 const ui = await readFile(path.join(output, 'ui.js'), 'utf8');
 const registration = 'if("serviceWorker"in navigator)navigator.serviceWorker.register';
