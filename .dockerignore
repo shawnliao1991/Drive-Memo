@@ -9,10 +9,16 @@
 !sync.js
 !ui.js
 !content.js
+!merge.js
 !outline.js
 !journal.js
+!passwords.js
+!reminder-test.js
 !sw.js
 !manifest.webmanifest
+!favicon.ico
+!favicon-16.png
+!favicon-32.png
 !icon-192.png
 !icon-512.png
 !apple-touch-icon.png
