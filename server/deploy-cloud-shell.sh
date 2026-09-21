@@ -18,13 +18,19 @@ if ! gcloud firestore databases describe --database='(default)' >/dev/null 2>&1;
  gcloud firestore databases create --database='(default)' --location="$REGION" --type=firestore-native
 fi
 if ! gcloud secrets describe drive-memo-client-secret >/dev/null 2>&1; then
+ gcloud secrets create drive-memo-client-secret --replication-policy=automatic
+fi
+if ! gcloud secrets versions list drive-memo-client-secret --filter='state=ENABLED' --limit=1 --format='value(name)' | grep -q .; then
  read -r -s -p 'Google OAuth client secret (hidden input): ' CLIENT_SECRET
  printf '\n'
- printf '%s' "$CLIENT_SECRET" | gcloud secrets create drive-memo-client-secret --data-file=- --replication-policy=automatic
+ printf '%s' "$CLIENT_SECRET" | gcloud secrets versions add drive-memo-client-secret --data-file=-
  unset CLIENT_SECRET
 fi
 if ! gcloud secrets describe drive-memo-encryption-key >/dev/null 2>&1; then
- openssl rand -base64 32 | tr -d '\n' | gcloud secrets create drive-memo-encryption-key --data-file=- --replication-policy=automatic
+ gcloud secrets create drive-memo-encryption-key --replication-policy=automatic
+fi
+if ! gcloud secrets versions list drive-memo-encryption-key --filter='state=ENABLED' --limit=1 --format='value(name)' | grep -q .; then
+ openssl rand -base64 32 | tr -d '\n' | gcloud secrets versions add drive-memo-encryption-key --data-file=-
 fi
 for SECRET in drive-memo-client-secret drive-memo-encryption-key; do
  gcloud secrets add-iam-policy-binding "$SECRET" --member="serviceAccount:$ACCOUNT" --role=roles/secretmanager.secretAccessor --condition=None >/dev/null
