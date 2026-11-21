@@ -194,7 +194,18 @@ html:has(dialog[open]),body:has(dialog[open]){overflow:hidden;overscroll-behavio
 .tree-guides{align-self:stretch;background:repeating-linear-gradient(to right,transparent 0,transparent 25px,#435055 25px,#435055 26px,transparent 26px,transparent var(--step))}.tree-dot,.tree-fold{height:28px;padding:0;line-height:28px!important}.tree-dot{font-size:14px!important;color:#d6dcde!important;touch-action:none;cursor:grab!important}.tree-fold{font-size:13px!important;color:#94a0a5!important}.tree-fold:disabled{visibility:hidden}.folded .tree-dot{background:radial-gradient(circle,#576369 0 8px,transparent 9px)}
 .tree-text,.tree-action,.tree-link{box-sizing:border-box;width:100%;min-width:0;padding:2px 4px;font:inherit;color:inherit;background:transparent;border:0;line-height:24px;text-align:left}.tree-text{resize:none;field-sizing:content;min-height:28px;display:block;outline:none}.note-row.parent .tree-text{font-weight:650}.tree-text:focus{background:#ffffff06}.tree-link,.tree-action{color:#9acbf3!important}.tree-link img{display:block;max-width:100%;max-height:240px}.note-row.selected{background:#39556b}
 .note-row.drop-above::before,.note-row.drop-below::after,.note-card.drop-above::before,.note-card.drop-below::after{content:"";position:absolute;left:0;right:0;height:4px;background:var(--drop);z-index:2;pointer-events:none;border-radius:2px}.drop-above::before{top:0}.drop-below::after{bottom:0}
-.note-help{margin:24px 0 0 20px;font-size:12px;color:#a6b1b7}.note-card-dialog form{display:grid;gap:12px;padding:16px}.note-card-dialog label{display:grid;gap:4px}.note-card-dialog input,.note-card-dialog select{font:inherit}
+.note-card-dialog form{display:grid;gap:12px;padding:16px}.note-card-dialog label{display:grid;gap:4px}.note-card-dialog input,.note-card-dialog select{font:inherit}
+body:has(#notesPage:not(.hidden)){display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
+body:has(#notesPage:not(.hidden))>.topbar,body:has(#notesPage:not(.hidden))>.sync-strip{flex:none}
+body:has(#notesPage:not(.hidden))>.sync-strip{width:100%}
+main:has(>#notesPage:not(.hidden)){flex:1 1 0;min-height:0;width:100%;box-sizing:border-box;margin-bottom:10px;overflow:hidden}
+#notesPage,#notebook{height:100%;min-height:0}
+#notebook{align-items:stretch;grid-template-rows:minmax(0,1fr);--tree-bg:#24292d}
+#notebook .note-nav{position:static;height:100%;min-height:0}
+.note-paper:not([hidden]){display:grid;grid-template-rows:auto minmax(0,1fr);min-height:0;overflow:hidden;border:1px solid #393f43;border-radius:8px}
+.note-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:8px}.note-heading h1{min-width:0;margin-bottom:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.note-info{border:0;background:transparent;font-size:22px!important;padding:4px 8px}.note-tree{min-height:0;overflow:auto;overscroll-behavior:contain}
+.note-instructions{box-sizing:border-box;width:min(32rem,92vw);max-height:85dvh;padding:20px;overflow:auto}.note-instructions h2{margin:0}.note-instructions ul{padding-left:1.4em;line-height:1.6}.note-instructions li+li{margin-top:5px}
 @media(max-width:680px){#notebook{grid-template-columns:minmax(120px,34%) minmax(0,1fr);gap:5px;--step:20px}.note-column{padding:2px}.note-nav{gap:2px}.note-card{font-size:12px}.card-edit{font-size:10px!important;padding:1px}.note-paper{padding:8px 3px}.tree-guides{background:repeating-linear-gradient(to right,transparent 0 16px,#435055 16px 17px,transparent 17px var(--step))}.note-add{font-size:10px!important}}
 
 </style>
@@ -239,8 +250,8 @@ html:has(dialog[open]),body:has(dialog[open]){overflow:hidden;overscroll-behavio
 <script src="./outline.js?v=20261014-3"></script>
 <script src="./journal.js?v=20260927-4"></script>
 <script src="./passwords.js?v=20261021-1"></script>
-<script src="./notes.js?v=20261121-3"></script>
-<script src="./ui.js?v=20261121-4"></script>
+<script src="./notes.js?v=20261121-5"></script>
+<script src="./ui.js?v=20261121-5"></script>
 <template id="reminderTestTemplate">
 <section class="debug-card reminder-test" aria-labelledby="reminderTestHeading">
  <h2 id="reminderTestHeading">iPhone 離線提醒測試</h2>

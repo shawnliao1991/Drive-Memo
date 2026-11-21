@@ -83,7 +83,7 @@ function renderJournal(){
 
 
 
-const noteEditor=global.DriveMemoNotes.create(byId("notebook"),()=>Content.parse(els.editor.value),fn=>mutateContent(md=>Content.updateJournal(md,fn),{render:false}),openBulletDialog);
+const noteEditor=global.DriveMemoNotes.create(byId("notebook"),()=>Content.parse(els.editor.value),fn=>mutateContent(md=>Content.updateJournal(md,fn),{render:false}),openBulletDialog,()=>els.fileId.value.trim());
 function renderAll(){renderJournal();if(!els.notesPage.classList.contains("hidden"))noteEditor.render();renderTrash()}
 function backupLegacyOnce(){const parsed=Content.parse(els.editor.value);if(parsed.hasJournal)return;try{const scope=(els.fileId.value.trim()||"local").replace(/[^a-zA-Z0-9_-]/g,"_");localStorage.setItem(`driveMemoV1Backup:${scope}:${Date.now()}`,els.editor.value)}catch{}}
 let editSession=null,editFingerprint="",editTimer=null;
