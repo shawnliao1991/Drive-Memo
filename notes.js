@@ -37,6 +37,7 @@ function create(root,read,write,openAction,fileId=()=>""){
  help.setAttribute("aria-label","筆記操作說明");
  for(const hint of ["↑／↓ 直接切換到相鄰可見列。游標靠前時到列首，靠後時到列尾。","Enter 分列；下一列是子列時，會新增同層子列。","列尾按 Delete 或下一列開頭按 Backspace，可合併相鄰文字列。","Tab 增加縮排，Shift＋Tab 減少縮排。","Shift＋↑／↓ 第一次選取目前列，再按延伸選取。Esc 取消選取。","Ctrl＋↑／↓ 或拖曳圓點移動列，已選取的多列會一起移動。","Page Up／Down 跳到同一父節點下的第一列／最後一列。","Alt＋←／→ 或點三角形收合、展開子列。","Ctrl／⌘＋C、X、V 可複製、剪下、貼上選取列。"])list.append(el("li","",hint));
  list.append(el("li","","貼上已複製或剪下的列時，將游標放在列首或列尾，分別插在該列之前或之後。"),el("li","","Ctrl＋Z（Mac 為 ⌘＋Z）逐步復原目前筆記頁的文字與列操作。"));
+ list.append(el("li","","在正在編輯的文字框拖曳可圈選文字；從其他列或空白處拖曳可選取多列。拖曳列首圓點可移動列或整組選取列。"));
  help.append(el("h2","","筆記操作說明"),list,btn("關閉","btn",()=>help.close()));
  const guides=btn("縮排線","note-guides-btn",()=>setGuides(guides.getAttribute("aria-pressed")!=="true",true));
  function setGuides(show,save){
@@ -45,7 +46,8 @@ function create(root,read,write,openAction,fileId=()=>""){
  }
  let showGuides=true;try{showGuides=localStorage.getItem("driveMemoShowNoteGuides")!=="false"}catch{}
  setGuides(showGuides,false);
- header.append(guides,info);main.append(header,body);root.append(nav,main,editorDialog,help);
+ const pageTitle=el("h1");pageTitle.id="activeNoteTitle";main.setAttribute("aria-labelledby",pageTitle.id);
+ header.append(pageTitle,guides,info);main.append(header,body);root.append(nav,main,editorDialog,help);
  function cardDialog(kind,record){
   const shelf=bookId,isBook=kind==="books",listKey=isBook?"notebooks":"notes",file=fileId();
   name.value=record?.title||"";icon.value=record?.icon||(isBook?"▤":"▧");color.value=record?.color||"#e1e5e7";
@@ -73,17 +75,23 @@ function create(root,read,write,openAction,fileId=()=>""){
  }
  function clearMark(){if(marker)marker.classList.remove("drop-above","drop-below");marker=null}
  function position(target,e){clearMark();const rect=target.getBoundingClientRect(),after=e.clientY>=rect.top+rect.height/2;target.classList.add(after?"drop-below":"drop-above");marker=target;return Number(target.dataset.index)+(after?1:0)}
- function draggable(handle,kind,i,begin,textField=false){
-  handle.ondragstart=e=>e.preventDefault();
+ function draggable(handle,kind,i,begin){
+  const selecting=kind==="selection";
   handle.addEventListener("pointerdown",down=>{
-   if(down.button!==0||!down.isPrimary||down.shiftKey||(textField&&down.pointerType!=="mouse"))return;
-   const container=handle.closest(kind==="rows"?".note-tree":".note-cards");
+   if(down.button!==0||!down.isPrimary)return;
+   if(selecting&&(down.pointerType!=="mouse"||down.target.closest(".tree-dot")||
+      (down.target.tagName==="TEXTAREA"&&down.target===document.activeElement&&anchor===null)))return;
+   const container=selecting?body:handle.closest(kind==="rows"?".note-tree":".note-cards");
+   const source=selecting?rowAt(container,down.clientY):null;
+   if(selecting&&!source)return;
+   const start=selecting?(down.shiftKey&&anchor!==null?anchor:Number(source.dataset.index)):i;
+   const preventNativeDrag=e=>e.preventDefault();
+   handle.addEventListener("dragstart",preventNativeDrag,true);
    let moving=false;
    function locate(e){
     const bounds=container.getBoundingClientRect();
     if(!handle.isConnected||e.clientX<bounds.left||e.clientX>bounds.right||e.clientY<bounds.top||e.clientY>bounds.bottom){clearMark();return null}
-    const targets=[...container.children];if(!targets.length)return null;
-    const target=targets.find(n=>e.clientY<n.getBoundingClientRect().bottom)||targets.at(-1);
+    const target=rowAt(container,e.clientY);if(!target)return null;
     return {move:dropActions.get(target),at:position(target,e)};
    }
    function track(e){
@@ -91,8 +99,7 @@ function create(root,read,write,openAction,fileId=()=>""){
     if(!moving){
      const dx=Math.abs(e.clientX-down.clientX),dy=Math.abs(e.clientY-down.clientY);
      if(Math.max(dx,dy)<5)return;
-     if(textField&&dx>=dy){cleanup();return}
-     moving=true;begin();container.classList.add("note-dragging");
+     moving=true;if(!selecting)begin();container.classList.add(selecting?"note-selecting":"note-dragging");
     }
     e.preventDefault();
     const bounds=container.getBoundingClientRect();
@@ -100,25 +107,32 @@ function create(root,read,write,openAction,fileId=()=>""){
      if(e.clientY<bounds.top+18)container.scrollTop-=12;
      else if(e.clientY>bounds.bottom-18)container.scrollTop+=12;
     }
-    locate(e);
+    if(selecting){const target=rowAt(container,e.clientY);if(target){anchor=start;head=Number(target.dataset.index);mark()}}
+    else locate(e);
    }
    function cleanup(){
+    handle.removeEventListener("dragstart",preventNativeDrag,true);
     global.removeEventListener("pointermove",track,true);global.removeEventListener("pointerup",finish,true);
     global.removeEventListener("pointercancel",cancel,true);global.removeEventListener("blur",cleanup);
-    container.classList.remove("note-dragging");clearMark();
+    container.classList.remove("note-dragging","note-selecting");clearMark();
    }
    function cancel(e){if(e.pointerId===down.pointerId)cleanup()}
    function finish(e){
     if(e.pointerId!==down.pointerId)return;
-    const drop=moving?locate(e):null;cleanup();if(!moving)return;
+    const drop=moving&&!selecting?locate(e):null;cleanup();if(!moving)return;
     const suppress=event=>{event.preventDefault();event.stopImmediatePropagation()};
     global.addEventListener("click",suppress,true);setTimeout(()=>global.removeEventListener("click",suppress,true),0);
-    drop?.move(i,drop.at);
+    if(selecting){global.getSelection()?.removeAllRanges();focus(head,0)}
+    else drop?.move(i,drop.at);
    }
    global.addEventListener("pointermove",track,true);global.addEventListener("pointerup",finish,true);
    global.addEventListener("pointercancel",cancel,true);global.addEventListener("blur",cleanup);
   });
  }
+ function rowAt(container,y){
+  const children=[...container.children];return children.find(n=>y<n.getBoundingClientRect().bottom)||children.at(-1);
+ }
+ draggable(body,"selection");
  function column(kind,heading){
   const wrap=el("section","note-column"),list=el("div","note-cards");
   list.setAttribute("aria-label",heading);const add=btn("＋ 新增"+heading,"note-add",()=>cardDialog(kind));
@@ -210,7 +224,7 @@ function create(root,read,write,openAction,fileId=()=>""){
   const entries=ordered(j.notes.filter(n=>n.bookId===bookId));if(!entries.some(n=>n.id===pageId)){pageId=entries[0]?.id||"";anchor=head=null}
   drawCards(books,shelves,bookId);drawCards(pages,entries,pageId);pages.add.disabled=!bookId;
   const n=entries.find(n=>n.id===pageId);main.hidden=!n;body.replaceChildren();visible=[];if(!n)return;
-  main.setAttribute("aria-label",n.title);
+  pageTitle.textContent=n.title;
   const rows=n.rows.length?n.rows:[textRow()],actions=new Map(j.bullets.filter(b=>!b.deletedAt).map(b=>[b.id,b]));
   let hiddenDepth=Infinity;
   rows.forEach((r,i)=>{
@@ -230,7 +244,6 @@ function create(root,read,write,openAction,fileId=()=>""){
    let field;
    if(r.type==="text"){
     field=el("textarea","tree-text");field.rows=1;field.value=r.text;field.placeholder=rows.length===1?"輸入文字…":"";
-    draggable(field,"rows",i,beginRowDrag,true);
     let beforeInput=null,composition=null;
     field.oncompositionstart=()=>{composition={}};
     field.oncompositionend=()=>{composition=null};
@@ -246,7 +259,10 @@ function create(root,read,write,openAction,fileId=()=>""){
     if(r.type==="image"&&url){const img=el("img");img.alt="筆記圖片";img.src=url;field.append(img)}else field.textContent=r.text;
    }
    field.dataset.editor="";field.tabIndex=0;field.setAttribute("aria-label","第 "+(i+1)+" 列"+(r.type==="text"?"":"，"+(field.textContent||"圖片")));
-   field.onpointerdown=e=>{const [a,b]=range(i);if(e.shiftKey){e.preventDefault();anchor??=i;head=i;focus(i)}else if(anchor===null||i<a||i>b)anchor=head=null;mark()};
+   field.addEventListener("click",e=>{
+    if(!e.shiftKey){anchor=head=null;mark()}
+    else if(field.tagName!=="TEXTAREA"||anchor!==null){anchor??=i;head=i;mark()}
+   });
    line.append(fold,dot,field);body.append(line);
    line.onkeydown=e=>{
     if(e.isComposing||e.keyCode===229)return;

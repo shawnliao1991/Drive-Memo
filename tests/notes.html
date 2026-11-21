@@ -19,6 +19,7 @@ document.querySelector("iframe").onload=function(){
  const clipboard=new w.DataTransfer();fields()[1].dispatchEvent(new w.ClipboardEvent("copy",{bubbles:true,cancelable:true,clipboardData:clipboard}));
  check(clipboard.getData("text/plain")==="- Parent\n  - Child","plain bullets");
  add(1,"Second");
+ check(page.querySelector(".note-heading h1").textContent==="Second","editor title follows the selected page");
  fields()[0].dispatchEvent(new w.ClipboardEvent("paste",{bubbles:true,cancelable:true,clipboardData:clipboard}));
  check(getBook()[1].rows[1].depth===1,"cross-note paste");
  press(fields()[1],"ArrowUp",{ctrlKey:true});check(getBook()[1].rows[0].text==="Child","keyboard reorder");

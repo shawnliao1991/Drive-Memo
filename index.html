@@ -209,6 +209,7 @@ main:has(>#notesPage:not(.hidden)){flex:1 1 0;min-height:0;width:100%;box-sizing
 .note-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:8px}.note-heading h1{min-width:0;margin-bottom:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .note-tree.hide-guides .tree-guides{background:none}.note-guides-btn{flex:none;margin-left:auto;border:1px solid #566268;border-radius:5px;background:transparent;padding:3px 7px}.note-guides-btn[aria-pressed=true]{background:#394d59;border-color:#739bb1}
 .note-card-actions{display:flex;gap:8px;justify-content:flex-end}.note-card-actions .danger{margin-right:auto}
+.note-selecting,.note-selecting *{user-select:none;cursor:default}
 .note-card-name{cursor:grab!important;user-select:none}.note-dragging,.note-dragging *{cursor:grabbing!important;user-select:none}
 .note-info{border:0;background:transparent;font-size:22px!important;padding:4px 8px}.note-tree{min-height:0;overflow:auto;overscroll-behavior:contain}
 .note-instructions{box-sizing:border-box;width:min(32rem,92vw);max-height:85dvh;padding:20px;overflow:auto}.note-instructions h2{margin:0}.note-instructions ul{padding-left:1.4em;line-height:1.6}.note-instructions li+li{margin-top:5px}
@@ -257,7 +258,7 @@ main:has(>#notesPage:not(.hidden)){flex:1 1 0;min-height:0;width:100%;box-sizing
 <script src="./outline.js?v=20261014-3"></script>
 <script src="./journal.js?v=20260927-4"></script>
 <script src="./passwords.js?v=20261121-8"></script>
-<script src="./notes.js?v=20261121-8"></script>
+<script src="./notes.js?v=20261121-10"></script>
 <script src="./ui.js?v=20261121-8"></script>
 <template id="reminderTestTemplate">
 <section class="debug-card reminder-test" aria-labelledby="reminderTestHeading">
