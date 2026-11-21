@@ -1,6 +1,8 @@
 (function(global){
 "use strict";
 
+ const copyAction=document.createElement("button");copyAction.type="button";copyAction.className="btn";copyAction.textContent="複製 Action";
+ byId("completeBulletBtn").after(copyAction);copyAction.onclick=async()=>{if(!flushEdit(true)||!els.bulletId.value)return;try{await navigator.clipboard.writeText("drive-memo:action/"+els.bulletId.value);sync.reportStatus("已複製 Action，可貼到筆記","ok")}catch{prompt("複製這個 Action 連結","drive-memo:action/"+els.bulletId.value)}};
 const Content=global.DriveMemoContent;
 const byId=id=>document.getElementById(id);
 const els={

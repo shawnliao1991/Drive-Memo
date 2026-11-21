@@ -37,11 +37,11 @@ function prepare(base,local,cloud){
     return result;
    }).filter(Boolean);
   }
-  const items=records('items'),bullets=records('bullets'),notes=records('notes');
+  const items=records('items'),bullets=records('bullets'),notes=records('notes'),notebooks=records('notebooks');
   const legacyMarkdown=pick(b.legacyMarkdown,l.legacyMarkdown,r.legacyMarkdown,'舊版筆記','legacyMarkdown');
   const debugState=pick(b.debugState,l.debugState,r.debugState,'其他設定','debugState');
   if(!collect&&bullets.some(x=>!items.some(item=>item.id===x.itemId)))throw Error("選取的 Action 缺少所屬項目，請保留對應項目後再合併");
-  return C.serialize({...l,hasJournal:l.hasJournal||r.hasJournal,legacyMarkdown,debugState,journal:{...l.journal,items,bullets,notes,updatedAt:new Date().toISOString()}});
+  return C.serialize({...l,hasJournal:l.hasJournal||r.hasJournal,legacyMarkdown,debugState,journal:{...l.journal,items,bullets,notes,notebooks,updatedAt:new Date().toISOString()}});
  }
  build({},true);
  return{conflicts,build:choices=>build(choices)};
