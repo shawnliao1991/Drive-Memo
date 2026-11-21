@@ -13,6 +13,16 @@ const assert=require("node:assert/strict");
    return route.fulfill({body:fs.readFileSync(name),contentType:name.endsWith(".js")?"text/javascript":"text/html; charset=utf-8"});
   });
   const page=await context.newPage();page.on("pageerror",error=>console.error(error.message));
+  await page.addInitScript(()=>{
+   localStorage.setItem("driveMemoLoggedOut","true");
+   window.loginRequests=0;
+   window.google={accounts:{oauth2:{initTokenClient:()=>({requestAccessToken(){window.loginRequests++}})}}};
+  });
+  await page.goto("http://localhost/index.html");
+  await page.waitForFunction(()=>Boolean(window.DriveMemoUI));
+  await page.getByRole("button",{name:"登入",exact:true}).click();
+  assert.equal(await page.evaluate(()=>window.loginRequests),1);
+  console.log("PASS journal startup and Google login button dispatch");
   await page.goto("http://localhost/tests/notes.html");
   await page.waitForFunction(()=>document.querySelector("#result")?.textContent!=="RUNNING");
   assert.equal(await page.locator("#result").innerText(),"PASS");

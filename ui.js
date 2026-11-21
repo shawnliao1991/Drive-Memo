@@ -1,8 +1,6 @@
 (function(global){
 "use strict";
 
- const copyAction=document.createElement("button");copyAction.type="button";copyAction.className="btn";copyAction.textContent="複製 Action";
- byId("completeBulletBtn").after(copyAction);copyAction.onclick=async()=>{if(!flushEdit(true)||!els.bulletId.value)return;try{await navigator.clipboard.writeText("drive-memo:action/"+els.bulletId.value);sync.reportStatus("已複製 Action，可貼到筆記","ok")}catch{prompt("複製這個 Action 連結","drive-memo:action/"+els.bulletId.value)}};
 const Content=global.DriveMemoContent;
 const byId=id=>document.getElementById(id);
 const els={
@@ -183,6 +181,8 @@ function positionMultiTools(){const panel=byId("multiTools");if(panel.classList.
 function toggleEditorPopover(button,panel){if(innerWidth>820&&panel===els.projectTextColor)return;const same=editorPopover?.panel===panel;closeEditorPopover();if(same)return;editorPopover={button,panel};panel.classList.remove("hidden");button.setAttribute("aria-expanded","true");positionEditorPopover()}
 let journalTools=null;
 function bindEvents(){
+ const copyAction=document.createElement("button");copyAction.type="button";copyAction.className="btn";copyAction.textContent="複製 Action";
+ byId("completeBulletBtn").after(copyAction);copyAction.onclick=async()=>{if(!flushEdit(true)||!els.bulletId.value)return;try{await navigator.clipboard.writeText("drive-memo:action/"+els.bulletId.value);sync.reportStatus("已複製 Action，可貼到筆記","ok")}catch{prompt("複製這個 Action 連結","drive-memo:action/"+els.bulletId.value)}};
  addEventListener("resize",adaptActionEditor);
  document.addEventListener("pointerdown",sync.userActivity,{passive:true});document.addEventListener("keydown",sync.userActivity);
  els.bulletForm.addEventListener("input",queueEdit);els.bulletForm.addEventListener("change",queueEdit);els.bulletForm.addEventListener("click",queueEdit);
