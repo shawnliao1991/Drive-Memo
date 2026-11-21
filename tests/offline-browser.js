@@ -18,8 +18,8 @@ const {chromium}=require('playwright'),http=require('node:http'),fs=require('nod
   await page.evaluate(()=>navigator.serviceWorker.ready);await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
   const buttons=await page.locator('#logoutBtn').boundingBox();assert(buttons.x+buttons.width<=390);
   await context.setOffline(true);
-  await page.locator('#agenda .bullet-main').first().click();await page.locator('#projectRichEditor .outline-line').first().fill('Offline changed note');await page.locator('#bulletDialog .dialog-top-actions button[type=submit]').click();
-  await page.locator('#quickMemoBtn').click();await page.locator('#projectRichEditor .outline-line').first().fill('Offline quick memo');await page.locator('#bulletDialog .dialog-top-actions button[type=submit]').click();
+  await page.locator('#agenda .bullet-main').first().click();await page.locator('#actionRowsEditor .tree-text').first().fill('Offline changed note');await page.locator('#bulletDialog .dialog-top-actions button[type=submit]').click();
+  await page.locator('#quickMemoBtn').click();await page.locator('#actionRowsEditor .tree-text').first().fill('Offline quick memo');await page.locator('#bulletDialog .dialog-top-actions button[type=submit]').click();
   await page.reload();await page.waitForFunction(()=>document.querySelector('#editor').value.includes('Offline quick memo'));
   assert((await page.locator('#editor').inputValue()).includes('Offline changed note'));assert.equal(patches,0);
   // Navigation with a new query must still load the cached application shell.

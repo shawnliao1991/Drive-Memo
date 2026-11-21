@@ -16,7 +16,7 @@ function httpURL(value){try{const u=new URL(value);if(["https:","http:"].include
 function imageURL(value){return httpURL(value)||(/^data:image\/(?:png|jpeg|gif|webp|avif);base64,[A-Za-z0-9+/=\s]+$/i.test(value)?value:"")}
 function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n}
 function btn(label,cls,fn){const n=el("button",cls,label);n.type="button";n.onclick=fn;return n}
-function create(root,read,write,openAction,fileId=()=>""){
+function create(root,read,write,openAction,fileId=()=>"",embedded=null){
  const data=()=>read().journal;
  let bookId="",pageId="",anchor=null,head=null,marker=null,visible=[];
  const dropActions=new WeakMap();
@@ -46,8 +46,9 @@ function create(root,read,write,openAction,fileId=()=>""){
  }
  let showGuides=true;try{showGuides=localStorage.getItem("driveMemoShowNoteGuides")!=="false"}catch{}
  setGuides(showGuides,false);
- const pageTitle=el("h1");pageTitle.id="activeNoteTitle";main.setAttribute("aria-labelledby",pageTitle.id);
- header.append(pageTitle,guides,info);main.append(header,body);root.append(nav,main,editorDialog,help);
+ const pageTitle=el("h1");
+ if(!embedded){pageTitle.id="activeNoteTitle";main.setAttribute("aria-labelledby",pageTitle.id);header.append(pageTitle);root.append(nav,editorDialog)}
+ header.append(guides,info);main.append(header,body);root.append(main,help);
  function cardDialog(kind,record){
   const shelf=bookId,isBook=kind==="books",listKey=isBook?"notebooks":"notes",file=fileId();
   name.value=record?.title||"";icon.value=record?.icon||(isBook?"▤":"▧");color.value=record?.color||"#e1e5e7";
@@ -160,7 +161,8 @@ function create(root,read,write,openAction,fileId=()=>""){
   });
   list.scrollTop=scroll;
  }
- const page=()=>data().notes.find(n=>n.id===pageId);
+ const page=()=>embedded?embedded.page:data().notes.find(n=>n.id===pageId);
+ const writePage=fn=>embedded?embedded.change(fn):write(j=>{const n=j.notes.find(n=>n.id===pageId);if(n)fn(n)});
  const histories=new Map();
  const historyKey=()=>JSON.stringify([fileId(),pageId]);
  const sameRow=(a,b)=>a.type===b.type&&a.text===b.text&&a.depth===b.depth&&a.collapsed===b.collapsed;
@@ -170,8 +172,7 @@ function create(root,read,write,openAction,fileId=()=>""){
  }
  function edit(fn,caret=bookmark(),group=null){
   const key=historyKey();
-  write(j=>{
-   const n=j.notes.find(n=>n.id===pageId);if(!n)return;
+  writePage(n=>{
    let history=histories.get(key);
    if(!history||!sameRows(history.current,n.rows))history={current:n.rows.map(r=>({...r})),steps:[]};
    const before=history.current;fn(n);
@@ -187,8 +188,7 @@ function create(root,read,write,openAction,fileId=()=>""){
   const key=historyKey(),history=histories.get(key);if(!history?.steps.length)return;
   if(!sameRows(history.current,page()?.rows||[])){histories.delete(key);return}
   let step;
-  write(j=>{
-   const n=j.notes.find(n=>n.id===pageId);
+  writePage(n=>{
    do{step=history.steps.pop();n.rows.splice(step.first,step.remove,...step.restore)}
    while(step.group&&history.steps.at(-1)?.group===step.group);
    history.current=n.rows.map(r=>({...r}));
@@ -220,12 +220,16 @@ function create(root,read,write,openAction,fileId=()=>""){
   },at,undefined,selection);
  }
  function render(){
+  if(embedded){pageId=embedded.page.id;renderRows(embedded.page,data().bullets);return}
   const j=data(),shelves=ordered(j.notebooks);if(!shelves.some(n=>n.id===bookId))bookId=shelves[0]?.id||"";
   const entries=ordered(j.notes.filter(n=>n.bookId===bookId));if(!entries.some(n=>n.id===pageId)){pageId=entries[0]?.id||"";anchor=head=null}
   drawCards(books,shelves,bookId);drawCards(pages,entries,pageId);pages.add.disabled=!bookId;
-  const n=entries.find(n=>n.id===pageId);main.hidden=!n;body.replaceChildren();visible=[];if(!n)return;
+  const n=entries.find(n=>n.id===pageId);renderRows(n,j.bullets);
+ }
+ function renderRows(n,bullets){
+  main.hidden=!n;body.replaceChildren();visible=[];if(!n)return;
   pageTitle.textContent=n.title;
-  const rows=n.rows.length?n.rows:[textRow()],actions=new Map(j.bullets.filter(b=>!b.deletedAt).map(b=>[b.id,b]));
+  const rows=n.rows.length?n.rows:[textRow()],actions=new Map(bullets.filter(b=>!b.deletedAt).map(b=>[b.id,b]));
   let hiddenDepth=Infinity;
   rows.forEach((r,i)=>{
    if(r.depth>hiddenDepth)return;hiddenDepth=r.collapsed?r.depth:Infinity;visible.push(i);
@@ -256,7 +260,12 @@ function create(root,read,write,openAction,fileId=()=>""){
     const a=actions.get(r.text);field=btn(a?(a.status==="done"?"✓ ":"☐ ")+(a.action||"Action"):"已移除的 Action","tree-action",()=>{if(a)openAction(r.text)});
    }else{
     const url=r.type==="image"?imageURL(r.text):httpURL(r.text);field=el("a","tree-link");if(url){field.href=url;field.target="_blank";field.rel="noopener noreferrer"}
-    if(r.type==="image"&&url){const img=el("img");img.alt="筆記圖片";img.src=url;field.append(img)}else field.textContent=r.text;
+    if(r.type==="image"&&url){
+     const img=el("img");img.alt="筆記圖片";field.append(img);
+     const preview=embedded?.drivePreview?.(url);
+     if(preview)preview.then(src=>{img.src=src}).catch(()=>{field.textContent="開啟 Drive 圖片"});
+     else img.src=url;
+    }else field.textContent=r.text;
    }
    field.dataset.editor="";field.tabIndex=0;field.setAttribute("aria-label","第 "+(i+1)+" 列"+(r.type==="text"?"":"，"+(field.textContent||"圖片")));
    field.addEventListener("click",e=>{
@@ -268,7 +277,7 @@ function create(root,read,write,openAction,fileId=()=>""){
     if(e.isComposing||e.keyCode===229)return;
     const key=e.key,up=key==="ArrowUp",down=key==="ArrowDown",idx=visible.indexOf(i),step=down?1:-1;
     const adjacent=visible[idx+step],[a,b]=range(i);
-    if(key==="Escape"){if(anchor!==null){e.preventDefault();anchor=head=null;mark()}return}
+    if(key==="Escape"){if(embedded)e.preventDefault();if(anchor!==null){e.preventDefault();anchor=head=null;mark()}return}
     if((up||down)&&e.shiftKey){e.preventDefault();if(anchor===null)anchor=head=i;else head=adjacent??i;focus(head);mark();return}
     if((up||down)&&e.ctrlKey){e.preventDefault();const [first,last]=extent(rows,i);
      if(up){const before=visible.filter(v=>v<first).at(-1);if(before!==undefined)moveRows(i,before)}
@@ -337,7 +346,7 @@ function create(root,read,write,openAction,fileId=()=>""){
    modify(rs=>rs.splice(i,1,...block.map(r=>({...r,depth:r.depth+row.depth}))),i+block.length-1,pos);
   }else insert(block);
  };
- return {render};
+ return {render,reset(){histories.clear();anchor=head=null;render()},focus:()=>focus(0),appendImage(url){const at=page().rows.length;modify(rs=>{if(!at)rs.length=0;rs.push({type:"image",depth:0,text:url})},at)}};
 }
 global.DriveMemoNotes={create};
 })(window);
