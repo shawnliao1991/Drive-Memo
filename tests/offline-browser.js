@@ -27,7 +27,7 @@ const {chromium}=require('playwright'),http=require('node:http'),fs=require('nod
   cloud=C.updateBullet(cloud,seed.bulletId,{details:'Cloud changed note'});version++;
   await context.setOffline(false);await page.waitForFunction(()=>document.querySelector('#conflictDialog').open);
   assert((await page.locator('#mergeChoices').innerText()).includes('Cloud changed note'));
-  await page.locator('#laterBtn').click();await page.locator('#reviewConflictBtn').click();
+  await page.locator('#laterBtn').click();await page.locator('#syncOverview').click();await page.locator('#reviewConflictBtn').click();
   await page.locator('#mergeBtn').click();assert((await page.locator('#mergeError').innerText()).includes('選擇'));
   for(const input of await page.locator('#mergeChoices input[value=both]').all())await input.check();
   await page.locator('#mergeBtn').click();await page.waitForFunction(()=>!document.querySelector('#conflictDialog').open);await page.waitForFunction(()=>!window.DriveMemoUI.sync.getDebugSnapshot().localDirty);

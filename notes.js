@@ -48,7 +48,10 @@ function create(root,read,write,openAction,fileId=()=>"",embedded=null){
  setGuides(showGuides,false);
  const pageTitle=el("h1");
  if(!embedded){pageTitle.id="activeNoteTitle";main.setAttribute("aria-labelledby",pageTitle.id);header.append(pageTitle);root.append(nav,editorDialog)}
- header.append(guides,info);main.append(header,body);root.append(main,help);
+ if(embedded)body.classList.add("hide-guides");
+ else{header.append(guides,info);main.append(header)}
+ main.append(body);root.append(main);
+ if(!embedded)root.append(help);
  function cardDialog(kind,record){
   const shelf=bookId,isBook=kind==="books",listKey=isBook?"notebooks":"notes",file=fileId();
   name.value=record?.title||"";icon.value=record?.icon||(isBook?"▤":"▧");color.value=record?.color||"#e1e5e7";
