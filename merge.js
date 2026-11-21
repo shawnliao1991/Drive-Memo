@@ -23,7 +23,7 @@ function prepare(base,local,cloud){
   function records(key){
    const bm=new Map(b.journal[key].map(x=>[x.id,x])),lm=new Map(l.journal[key].map(x=>[x.id,x])),rm=new Map(r.journal[key].map(x=>[x.id,x]));
    return [...new Set([...bm.keys(),...lm.keys(),...rm.keys()])].map(id=>{
-    const before=bm.get(id),left=lm.get(id),right=rm.get(id),record=left||right||before,label=(key==='bullets'?'Action：':'項目：')+(record.action||record.title||'未命名');
+    const before=bm.get(id),left=lm.get(id),right=rm.get(id),record=left||right||before,label=(key==='bullets'?'Action：':key==='notes'?'筆記：':'項目：')+(record.action||record.title||'未命名');
     if(!left||!right)return pick(before,left,right,label,'record');
     // A deletion versus an edit needs a whole-record choice; otherwise the edit could disappear into trash.
     const removed=x=>Boolean(x?.deletedAt||x?.archivedAt),meaningful=x=>Object.fromEntries(Object.entries(x||{}).filter(([k])=>!['updatedAt','createdAt'].includes(k)));
@@ -37,11 +37,11 @@ function prepare(base,local,cloud){
     return result;
    }).filter(Boolean);
   }
-  const items=records('items'),bullets=records('bullets');
+  const items=records('items'),bullets=records('bullets'),notes=records('notes');
   const legacyMarkdown=pick(b.legacyMarkdown,l.legacyMarkdown,r.legacyMarkdown,'舊版筆記','legacyMarkdown');
   const debugState=pick(b.debugState,l.debugState,r.debugState,'其他設定','debugState');
   if(!collect&&bullets.some(x=>!items.some(item=>item.id===x.itemId)))throw Error("選取的 Action 缺少所屬項目，請保留對應項目後再合併");
-  return C.serialize({...l,hasJournal:l.hasJournal||r.hasJournal,legacyMarkdown,debugState,journal:{...l.journal,items,bullets,updatedAt:new Date().toISOString()}});
+  return C.serialize({...l,hasJournal:l.hasJournal||r.hasJournal,legacyMarkdown,debugState,journal:{...l.journal,items,bullets,notes,updatedAt:new Date().toISOString()}});
  }
  build({},true);
  return{conflicts,build:choices=>build(choices)};

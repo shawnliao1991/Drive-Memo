@@ -11,8 +11,8 @@ function create(options={}){
  let activeFileId=getFileId().trim(),epoch=0,loggedOut=false,storageFailed=false;
  const offline=()=>global.navigator?.onLine===false;
  const draftKey=id=>`driveMemoDraft:${id||"local"}`;
- function persistLocal(){try{localStorage.setItem(draftKey(activeFileId),JSON.stringify({schema:1,content:getLocalContent(),baseContent,baseVersion,currentMeta,localDirty,updatedAt:new Date().toISOString()}));storageFailed=false;return true}catch{storageFailed=true;setStatus("無法寫入本機備份，請先匯出備份再關閉頁面","err");return false}}
- function restoreLocal(){try{const raw=localStorage.getItem(draftKey(activeFileId));if(!raw)return false;const data=JSON.parse(raw);if(data.schema!==1||typeof data.content!=="string"||typeof data.baseContent!=="string")throw Error("invalid draft");baseContent=data.baseContent;baseVersion=data.baseVersion??null;currentMeta=data.currentMeta??null;localDirty=data.localDirty===true||data.content!==baseContent;applyContent(data.content);onMeta(currentMeta);onDirty(localDirty);setStatus(localDirty?"已還原本機筆記，等待連線同步":"已載入本機副本","ok");return true}catch{setStatus("本機備份無法讀取；請先匯出備份，避免遺失","err");return false}}
+ function persistLocal(){try{const content=getLocalContent();localStorage.setItem(draftKey(activeFileId),JSON.stringify({schema:2,content,baseContent:content===baseContent?null:baseContent,baseVersion,currentMeta,localDirty,updatedAt:new Date().toISOString()}));storageFailed=false;return true}catch{storageFailed=true;setStatus("無法寫入本機備份，請先匯出備份再關閉頁面","err");return false}}
+ function restoreLocal(){try{const raw=localStorage.getItem(draftKey(activeFileId));if(!raw)return false;const data=JSON.parse(raw);if(data.schema===2&&data.baseContent===null)data.baseContent=data.content;if(![1,2].includes(data.schema)||typeof data.content!=="string"||typeof data.baseContent!=="string")throw Error("invalid draft");baseContent=data.baseContent;baseVersion=data.baseVersion??null;currentMeta=data.currentMeta??null;localDirty=data.localDirty===true||data.content!==baseContent;applyContent(data.content);onMeta(currentMeta);onDirty(localDirty);setStatus(localDirty?"已還原本機筆記，等待連線同步":"已載入本機副本","ok");return true}catch{setStatus("本機備份無法讀取；請先匯出備份，避免遺失","err");return false}}
  const backend=cfg.AUTH_BACKEND?global.DriveMemoBackendAuth.create({onIdentity,onConnected,onStatus,onReady:async()=>{startSyncLoop();await resumeAfterLogin()}}):null;
 
  function setStatus(text,kind=""){onStatus(storageFailed?"無法寫入本機備份，請先匯出備份再關閉頁面":text,storageFailed?"err":kind)}
@@ -99,7 +99,31 @@ function buildTokenClient(){
 
  function showConflict(data){conflictActive=true;pendingConflict={...data,baseContent};persistLocal();clearTimeout(autosaveTimer);autosaveTimer=null;setStatus("同步衝突：等待你逐項合併","err");onConflict(pendingConflict)}
  function reviewConflict(){if(pendingConflict){pendingConflict.localContent=getLocalContent();onConflict(pendingConflict)}}
- function backupConflict(label,content){try{localStorage.setItem(`driveMemoBackup:${activeFileId}:${Date.now()}:${label}`,content);return true}catch{storageFailed=true;setStatus("無法保留合併前備份，請先匯出備份","err");return false}}
+ // Replace the previous pair only after both originals have been stored together.
+ async function backupConflict(fileId,local,cloud){
+  const backup={fileId,local,cloud,updatedAt:new Date().toISOString()};
+  if(global.indexedDB){
+   try{
+    await new Promise((resolve,reject)=>{
+     const request=global.indexedDB.open("driveMemoConflictBackups",1);
+     request.onupgradeneeded=()=>request.result.createObjectStore("originals");
+     request.onerror=()=>reject(request.error);
+     request.onsuccess=()=>{
+      const db=request.result;
+      try{
+       const transaction=db.transaction("originals","readwrite");
+       transaction.oncomplete=()=>{db.close();resolve()};
+       transaction.onabort=()=>{db.close();reject(transaction.error)};
+       transaction.objectStore("originals").put(backup,fileId);
+      }catch(error){db.close();reject(error)}
+     };
+    });
+    return;
+   }catch{/* Restricted browsers may still allow localStorage. */}
+  }
+  try{localStorage.setItem("driveMemoBackup:"+fileId+":before-merge",JSON.stringify(backup))}
+  catch{throw Error("無法保存合併前的兩份備份；請匯出本機筆記並釋放網站儲存空間後重試")}
+ }
  function scheduleAutosave(){clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{autosaveTimer=null;saveNow()},AUTOSAVE_DELAY)}
 
  async function saveNow({force=false}={}){
@@ -125,8 +149,17 @@ function buildTokenClient(){
 
  function localContentChanged(){if(saving)saveQueued=true;setDirty(getLocalContent()!==baseContent);if(conflictActive){pendingConflict.localContent=getLocalContent();return}if(localDirty)scheduleAutosave()}
  function fileIdChanged(){persistLocal();const oldId=activeFileId,oldContent=getLocalContent(),oldDirty=localDirty;epoch++;clearTimeout(autosaveTimer);activeFileId=getFileId().trim();saveFileId();baseVersion=null;baseContent="";currentMeta=null;conflictActive=false;pendingConflict=null;onConflictResolved();localDirty=false;applyContent("");if(!restoreLocal()&&!oldId&&oldDirty){applyContent(oldContent);setDirty(true)}else onDirty(localDirty);if(!loggedOut&&(backend||accessTokenValid()))openCurrentFile()}
- function resolveUseCloud(){if(!pendingConflict)return;if(!backupConflict("local-discarded",getLocalContent()))return;applyContent(pendingConflict.cloudContent);baseContent=pendingConflict.cloudContent;updateMeta(pendingConflict.meta);setDirty(false);conflictActive=false;pendingConflict=null;onConflictResolved();setStatus("已採用雲端版本；本機舊版已留在瀏覽器備份","ok")}
- async function resolveMerged(content){if(!pendingConflict)return;const data=pendingConflict;if(!backupConflict("local-before-merge",getLocalContent())||!backupConflict("cloud-before-merge",data.cloudContent))throw Error("無法保留合併前備份，請先匯出備份");baseContent=data.cloudContent;updateMeta(data.meta);applyContent(content);conflictActive=false;pendingConflict=null;setDirty(content!==baseContent);onConflictResolved();await saveNow()}
+ async function resolveUseCloud(){if(pendingConflict)await resolveMerged(pendingConflict.cloudContent)}
+ async function resolveMerged(content){
+  const data=pendingConflict;if(!data)return;
+  const local=getLocalContent(),resolutionEpoch=epoch;
+  await backupConflict(activeFileId,local,data.cloudContent);
+  if(resolutionEpoch!==epoch||data!==pendingConflict)return;
+  if(getLocalContent()!==local){reviewConflict();throw Error("本機內容已更新，請重新確認合併")}
+  baseContent=data.cloudContent;applyContent(content);updateMeta(data.meta);
+  conflictActive=false;pendingConflict=null;setDirty(content!==baseContent);onConflictResolved();
+  if(localDirty)await saveNow();else setStatus("已同步","ok")
+ }
  async function resolveKeepLocal(){await resolveMerged(getLocalContent())}
  function resolveLater(){setStatus("衝突尚未處理；自動儲存暫停","err")}
  function reportStatus(text,kind=""){setStatus(text,kind)}

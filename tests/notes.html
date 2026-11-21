@@ -1,0 +1,38 @@
+<!doctype html><meta charset="utf-8"><title>Notes integration</title>
+<pre id="result">RUNNING</pre><iframe src="../index.html#notes"></iframe>
+<script>
+document.querySelector("iframe").onload=function(){
+ const w=this.contentWindow,d=w.document,C=w.DriveMemoContent,status=document.getElementById("result");
+ const check=(condition,msg)=>{if(!condition)throw Error(msg)};
+ try{
+ const page=d.querySelector("#notesPage"),getBook=()=>C.parse(d.querySelector("#editor").value).journal.notes;
+ check(!page.classList.contains("hidden"),"notes route");
+ let names=["Folder","First","Second"];w.prompt=()=>names.shift();
+ const press=(el,key,opts={})=>el.dispatchEvent(new w.KeyboardEvent("keydown",{key,bubbles:true,cancelable:true,...opts}));
+ const fields=()=>[...page.querySelectorAll("[data-editor]")];
+ page.querySelector("aside>button").click();
+ const type=(i,value)=>{const field=fields()[i];field.value=value;field.dispatchEvent(new w.Event("input",{bubbles:true}));field.setSelectionRange(value.length,value.length)};
+ type(0,"Parent");press(fields()[0],"Enter",{isComposing:true});check(fields().length===1,"IME confirmation");
+ press(fields()[0],"Enter");type(1,"Child");press(fields()[1],"ArrowRight",{altKey:true});
+ check(getBook()[0].rows[1].depth===1,"child indentation");
+ press(fields()[0],"ArrowDown",{shiftKey:true});
+ const clipboard=new w.DataTransfer();fields()[1].dispatchEvent(new w.ClipboardEvent("copy",{bubbles:true,cancelable:true,clipboardData:clipboard}));
+ check(clipboard.getData("text/plain")==="- Parent\n  - Child","plain bullets");
+ page.querySelector("aside section button").click();
+ fields()[0].dispatchEvent(new w.ClipboardEvent("paste",{bubbles:true,cancelable:true,clipboardData:clipboard}));
+ check(getBook()[1].rows[1].depth===1,"cross-note paste");
+ press(fields()[1],"ArrowUp",{altKey:true});check(getBook()[1].rows[0].text==="Child","keyboard reorder");
+ press(fields()[0],"ArrowDown",{shiftKey:true});press(fields()[1],"Delete");
+ check(getBook()[1].rows.length===0&&fields().length===1,"empty note with one input");
+ type(0,"Again");check(getBook()[1].rows.length===1,"empty input reused");
+ check(!d.querySelector("a[href='#projects']"),"old navigation");
+ const first=C.addBullet("",{title:"A",action:"A",details:"Action details"});
+ const old=C.parse(first.markdown);old.journal.items[0].kind="project";old.journal.items[0].details="Project notes";
+ old.journal.bullets.push({...old.journal.bullets[0],id:"second",action:"B"});
+ const migrated=C.serialize(old),j=C.parse(migrated).journal;
+ check(j.notes[0].rows[0].text==="Project notes"&&j.bullets[0].itemId!==j.bullets[1].itemId,"project migration");
+ check(C.getBullet(C.setBulletStatus(migrated,"second","done"),first.bulletId).status==="todo","independent completion");
+ status.textContent="PASS";
+ }catch(error){status.textContent="FAIL "+error.stack}
+};
+</script>

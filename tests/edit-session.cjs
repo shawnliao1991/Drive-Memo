@@ -5,6 +5,11 @@ let text=c.updateBullet(b.markdown,a.bulletId,{action:'Edited',details:'Typing'}
 text=c.updateBullet(text,b.bulletId,{action:'Remote update'});text=session.rollback(text);
 assert.equal(c.getBullet(text,a.bulletId).action,'Original');assert.equal(c.getBullet(text,a.bulletId).details,'Original notes');assert.equal(c.getBullet(text,b.bulletId).action,'Remote update');
 const fresh=c.createEditSession(),created=c.addBullet(text,{action:'Draft'});fresh.track(text,created.markdown);assert.equal(c.getBullet(fresh.rollback(created.markdown),created.bulletId),null);
-const project=c.convertToProject(b.markdown,b.bulletId),attached=c.assignProject(project,a.bulletId,b.itemId);assert.equal(c.getBullet(attached,a.bulletId).itemId,b.itemId);assert.equal(c.getBullet(attached,a.bulletId).details,'Original notes');
+const previous=c.parse(b.markdown);previous.journal.items.find(r=>r.id===b.itemId).kind='project';
+previous.journal.bullets.find(r=>r.id===a.bulletId).itemId=b.itemId;
+const detached=c.serialize(previous),editing=c.createEditSession(),edited=c.updateBullet(detached,a.bulletId,{details:'Temporary'});
+editing.track(detached,edited);
+assert.equal(c.getBullet(editing.rollback(edited),a.bulletId).details,'Original notes');
+assert.notEqual(c.getBullet(detached,a.bulletId).itemId,c.getBullet(detached,b.bulletId).itemId);
 const concurrent=c.createEditSession(),changed=c.updateBullet(b.markdown,a.bulletId,{details:'Local'});concurrent.track(b.markdown,changed);const remote=c.updateBullet(changed,a.bulletId,{details:'Remote'});assert.equal(c.getBullet(concurrent.rollback(remote),a.bulletId).details,'Remote');
-console.log('PASS cancel restores edited fields, preserves unrelated and newer remote changes, removes new draft, attaches existing project');
+console.log('PASS cancel restores edited fields, preserves unrelated and newer remote changes, removes new draft');
