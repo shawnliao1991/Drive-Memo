@@ -68,6 +68,17 @@ document.querySelector("iframe").onload=function(){
  const migrated=C.serialize(old),j=C.parse(migrated).journal;
  check(j.notes[0].rows[0].text==="Project notes"&&j.bullets[0].itemId!==j.bullets[1].itemId,"project migration");
  check(C.getBullet(C.setBulletStatus(migrated,"second","done"),first.bulletId).status==="todo","independent completion");
+ add(1,"Multi-indent");type(0,"Parent");press(fields()[0],"Enter");type(1,"B");press(fields()[1],"Enter");type(2,"C");
+ for(const [from,to,direction] of [[1,2,"ArrowDown"],[2,1,"ArrowUp"]]){
+  press(fields()[from],direction,{shiftKey:true});press(fields()[from],direction,{shiftKey:true});
+  for(const outdent of [false,true]){
+   press(d.activeElement,"Tab",{shiftKey:outdent});
+   check([...page.querySelectorAll(".note-row.selected")].map(n=>n.dataset.index).join()==="1,2","indent retains the same two rows");
+   check(d.activeElement===fields()[to],"indent preserves selection direction");
+   check(getBook().at(-1).rows.map(r=>r.depth).join()===(outdent?"0,0,0":"0,1,1"),"whole selection changes depth");
+  }
+  press(d.activeElement,"Escape");
+ }
  status.textContent="PASS";
  }catch(error){status.textContent="FAIL "+error.stack}
 };

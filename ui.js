@@ -168,7 +168,7 @@ const sync=global.DriveMemoSync.create({
  config:global.APP_CONFIG||{},getFileId:()=>els.fileId.value,getImageFolderId:()=>byId("imageFolderId").value,getSmallCardImageFolderId:()=>byId("smallCardImageFolderId").value,getLocalContent:()=>els.editor.value,getIdentity:()=>identityValue,beforeRemoteApply:()=>flushEdit(),
  applyContent:content=>{if(els.bulletDialog.open)closeBulletDialog();els.editor.value=content;renderAll()},onStatus:setStatus,onDirty:setDirty,onMeta:setMeta,onIdentity:setIdentity,onConnected:setConnected,onConflict:showConflict,onConflictResolved:closeConflict,onAutosaveError:showAutosaveToast
 });
-let passwordTools=global.DriveMemoPasswords.create({cloud:sync,onFileIdChange:value=>writeSetting("driveMemoPasswordFileId",value)});
+let passwordTools=global.DriveMemoPasswords.create({cloud:sync,onFeedback:showAutosaveToast,onFileIdChange:value=>writeSetting("driveMemoPasswordFileId",value)});
 
 
 let editorPopover=null;

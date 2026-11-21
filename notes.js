@@ -18,13 +18,17 @@ function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className
 function btn(label,cls,fn){const n=el("button",cls,label);n.type="button";n.onclick=fn;return n}
 function create(root,read,write,openAction,fileId=()=>""){
  const data=()=>read().journal;
- let bookId="",pageId="",anchor=null,head=null,drag=null,marker=null,visible=[];
- const main=el("section","note-paper"),title=el("h1"),body=el("div","note-tree"),nav=el("aside","note-nav");
+ let bookId="",pageId="",anchor=null,head=null,marker=null,visible=[];
+ const dropActions=new WeakMap();
+ const main=el("section","note-paper"),body=el("div","note-tree"),nav=el("aside","note-nav");
  const editorDialog=el("dialog","note-card-dialog"),form=el("form"),name=el("input"),icon=el("select"),color=el("input");
  name.required=true;name.maxLength=120;color.type="color";for(const v of icons)icon.add(new Option(v,v));
  let saveCard;
  function label(text,field){const label=el("label","",text);label.append(field);return label}
- form.append(label("名稱",name),label("圖示",icon),label("文字顏色",color),btn("取消","",()=>editorDialog.close()),el("button","","儲存"));
+ const removeCard=el("button","btn danger","刪除");removeCard.type="button";
+ const cardActions=el("div","note-card-actions");
+ cardActions.append(removeCard,btn("取消","btn",()=>editorDialog.close()),el("button","btn primary","儲存"));
+ form.append(label("名稱",name),label("圖示",icon),label("文字顏色",color),cardActions);
  form.onsubmit=e=>{e.preventDefault();if(!name.value.trim())return;saveCard({title:name.value.trim(),icon:icon.value,color:color.value});editorDialog.close();render()};
  editorDialog.append(form);
  const header=el("header","note-heading"),help=el("dialog","note-instructions"),list=el("ul");
@@ -34,10 +38,30 @@ function create(root,read,write,openAction,fileId=()=>""){
  for(const hint of ["↑／↓ 直接切換到相鄰可見列。游標靠前時到列首，靠後時到列尾。","Enter 分列；下一列是子列時，會新增同層子列。","列尾按 Delete 或下一列開頭按 Backspace，可合併相鄰文字列。","Tab 增加縮排，Shift＋Tab 減少縮排。","Shift＋↑／↓ 第一次選取目前列，再按延伸選取。Esc 取消選取。","Ctrl＋↑／↓ 或拖曳圓點移動列，已選取的多列會一起移動。","Page Up／Down 跳到同一父節點下的第一列／最後一列。","Alt＋←／→ 或點三角形收合、展開子列。","Ctrl／⌘＋C、X、V 可複製、剪下、貼上選取列。"])list.append(el("li","",hint));
  list.append(el("li","","貼上已複製或剪下的列時，將游標放在列首或列尾，分別插在該列之前或之後。"),el("li","","Ctrl＋Z（Mac 為 ⌘＋Z）逐步復原目前筆記頁的文字與列操作。"));
  help.append(el("h2","","筆記操作說明"),list,btn("關閉","btn",()=>help.close()));
- header.append(title,info);main.append(header,body);root.append(nav,main,editorDialog,help);
+ const guides=btn("縮排線","note-guides-btn",()=>setGuides(guides.getAttribute("aria-pressed")!=="true",true));
+ function setGuides(show,save){
+  guides.setAttribute("aria-pressed",String(show));body.classList.toggle("hide-guides",!show);
+  if(save)try{localStorage.setItem("driveMemoShowNoteGuides",String(show))}catch{}
+ }
+ let showGuides=true;try{showGuides=localStorage.getItem("driveMemoShowNoteGuides")!=="false"}catch{}
+ setGuides(showGuides,false);
+ header.append(guides,info);main.append(header,body);root.append(nav,main,editorDialog,help);
  function cardDialog(kind,record){
-  const shelf=bookId,isBook=kind==="books",listKey=isBook?"notebooks":"notes";
+  const shelf=bookId,isBook=kind==="books",listKey=isBook?"notebooks":"notes",file=fileId();
   name.value=record?.title||"";icon.value=record?.icon||(isBook?"▤":"▧");color.value=record?.color||"#e1e5e7";
+  removeCard.hidden=!record;
+  removeCard.onclick=()=>{
+   const journal=data(),current=record&&journal[listKey].find(item=>item.id===record.id);
+   if(file!==fileId()||!current){editorDialog.close();render();return}
+   const count=isBook?journal.notes.filter(n=>n.bookId===current.id).length:0;
+   const question=isBook?"刪除筆記本「"+current.title+"」及其中的 "+count+" 個筆記頁？":"刪除筆記頁「"+current.title+"」及其內容？";
+   if(!global.confirm(question))return;
+   write(j=>{
+    j.notes=j.notes.filter(n=>isBook?n.bookId!==current.id:n.id!==current.id);
+    if(isBook)j.notebooks=j.notebooks.filter(n=>n.id!==current.id);
+   });
+   editorDialog.close();render();
+  };
   saveCard=values=>write(j=>{
    if(record){const item=j[listKey].find(x=>x.id===record.id);if(item)Object.assign(item,values);return}
    const id=crypto.randomUUID(),siblings=isBook?j.notebooks:j.notes.filter(n=>n.bookId===shelf);
@@ -49,26 +73,51 @@ function create(root,read,write,openAction,fileId=()=>""){
  }
  function clearMark(){if(marker)marker.classList.remove("drop-above","drop-below");marker=null}
  function position(target,e){clearMark();const rect=target.getBoundingClientRect(),after=e.clientY>=rect.top+rect.height/2;target.classList.add(after?"drop-below":"drop-above");marker=target;return Number(target.dataset.index)+(after?1:0)}
- function wireDrop(target,kind,move){
-  target.ondragover=e=>{if(drag?.kind!==kind)return;e.preventDefault();e.dataTransfer.dropEffect="move";position(target,e)};
-  target.ondragleave=e=>{if(!target.contains(e.relatedTarget))clearMark()};
-  target.ondrop=e=>{if(drag?.kind!==kind)return;e.preventDefault();const at=position(target,e),source=drag.index;stopDrag();move(source,at)};
- }
- function stopDrag(){clearMark();drag=null}
- function draggable(handle,kind,i,begin,move){
-  handle.draggable=true;
-  handle.ondragstart=e=>{begin();drag={kind,index:i};e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",handle.getAttribute("aria-label")||kind)};
-  handle.ondragend=stopDrag;
-  let touch=null;
-  handle.onpointerdown=e=>{if(e.pointerType!=="touch")return;touch={x:e.clientX,y:e.clientY};handle.setPointerCapture(e.pointerId)};
-  handle.onpointermove=e=>{
-   if(!touch)return;if(!drag&&Math.hypot(e.clientX-touch.x,e.clientY-touch.y)<8)return;
-   if(!drag){begin();drag={kind,index:i}}
-   const target=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-drop="'+kind+'"]');
-   if(target)position(target,e);else clearMark();
-  };
-  handle.onpointercancel=()=>{touch=null;stopDrag()};
-  handle.onpointerup=e=>{if(!touch)return;touch=null;if(!drag)return;const at=marker?position(marker,e):null;stopDrag();if(at!==null)move(i,at)};
+ function draggable(handle,kind,i,begin,textField=false){
+  handle.ondragstart=e=>e.preventDefault();
+  handle.addEventListener("pointerdown",down=>{
+   if(down.button!==0||!down.isPrimary||down.shiftKey||(textField&&down.pointerType!=="mouse"))return;
+   const container=handle.closest(kind==="rows"?".note-tree":".note-cards");
+   let moving=false;
+   function locate(e){
+    const bounds=container.getBoundingClientRect();
+    if(!handle.isConnected||e.clientX<bounds.left||e.clientX>bounds.right||e.clientY<bounds.top||e.clientY>bounds.bottom){clearMark();return null}
+    const targets=[...container.children];if(!targets.length)return null;
+    const target=targets.find(n=>e.clientY<n.getBoundingClientRect().bottom)||targets.at(-1);
+    return {move:dropActions.get(target),at:position(target,e)};
+   }
+   function track(e){
+    if(e.pointerId!==down.pointerId)return;
+    if(!moving){
+     const dx=Math.abs(e.clientX-down.clientX),dy=Math.abs(e.clientY-down.clientY);
+     if(Math.max(dx,dy)<5)return;
+     if(textField&&dx>=dy){cleanup();return}
+     moving=true;begin();container.classList.add("note-dragging");
+    }
+    e.preventDefault();
+    const bounds=container.getBoundingClientRect();
+    if(e.clientX>=bounds.left&&e.clientX<=bounds.right){
+     if(e.clientY<bounds.top+18)container.scrollTop-=12;
+     else if(e.clientY>bounds.bottom-18)container.scrollTop+=12;
+    }
+    locate(e);
+   }
+   function cleanup(){
+    global.removeEventListener("pointermove",track,true);global.removeEventListener("pointerup",finish,true);
+    global.removeEventListener("pointercancel",cancel,true);global.removeEventListener("blur",cleanup);
+    container.classList.remove("note-dragging");clearMark();
+   }
+   function cancel(e){if(e.pointerId===down.pointerId)cleanup()}
+   function finish(e){
+    if(e.pointerId!==down.pointerId)return;
+    const drop=moving?locate(e):null;cleanup();if(!moving)return;
+    const suppress=event=>{event.preventDefault();event.stopImmediatePropagation()};
+    global.addEventListener("click",suppress,true);setTimeout(()=>global.removeEventListener("click",suppress,true),0);
+    drop?.move(i,drop.at);
+   }
+   global.addEventListener("pointermove",track,true);global.addEventListener("pointerup",finish,true);
+   global.addEventListener("pointercancel",cancel,true);global.addEventListener("blur",cleanup);
+  });
  }
  function column(kind,heading){
   const wrap=el("section","note-column"),list=el("div","note-cards");
@@ -92,8 +141,8 @@ function create(root,read,write,openAction,fileId=()=>""){
    });
    choose.append(el("span","card-icon",r.icon||(isBook?"▤":"▧")),el("span","card-caption",r.title));choose.title=r.title;choose.style.color=r.color||"";choose.setAttribute("aria-current",String(current===r.id));
    const edit=btn("✎","card-edit",()=>cardDialog(kind,r));edit.setAttribute("aria-label","編輯 "+r.title);
-   card.append(choose,edit);list.append(card);wireDrop(card,kind,reorder);
-   draggable(choose,kind,i,()=>{},reorder);
+   card.append(choose,edit);list.append(card);dropActions.set(card,reorder);
+   draggable(choose,kind,i,()=>{});
   });
   list.scrollTop=scroll;
  }
@@ -139,10 +188,11 @@ function create(root,read,write,openAction,fileId=()=>""){
  });
  function range(i){return anchor===null?[i,i]:[Math.min(anchor,head),Math.max(anchor,head)]}
  function focus(i,pos){const field=body.querySelector('[data-index="'+i+'"] [data-editor]');if(!field)return;field.focus();if(pos!==undefined&&field.setSelectionRange)field.setSelectionRange(pos,pos);field.scrollIntoView({block:"nearest"})}
- function mark(){for(const n of body.children){const i=+n.dataset.index,[a,b]=range(i);const selected=anchor!==null&&i>=a&&i<=b;n.classList.toggle("selected",selected);n.draggable=selected}}
- function modify(fn,i,pos){
+ function mark(){for(const n of body.children){const i=+n.dataset.index,[a,b]=range(i);n.classList.toggle("selected",anchor!==null&&i>=a&&i<=b)}}
+ function modify(fn,i,pos,selection=null){
   edit(n=>{if(!n.rows.length)n.rows=[textRow()];fn(n.rows);n.rows=normalize(n.rows)});
-  anchor=head=null;render();focus(visible.includes(i)?i:visible.filter(v=>v<=i).at(-1)??0,pos);
+  [anchor,head]=selection??[null,null];render();
+  const target=head??i;focus(visible.includes(target)?target:visible.filter(v=>v<=target).at(-1)??0,pos);
  }
  function extent(rows,i){const [a,end]=range(i);return [a,Math.max(end,endOfBranch(rows,end)-1)]}
  function moveRows(i,to,targetDepth){
@@ -153,15 +203,14 @@ function create(root,read,write,openAction,fileId=()=>""){
    const block=rs.splice(a,b-a+1),maxDepth=at?rs[at-1].depth+1:0;
    const delta=Math.min(targetDepth??block[0].depth,maxDepth)-block[0].depth;
    block.forEach(row=>row.depth=Math.max(0,row.depth+delta));rs.splice(at,0,...block);
-  },at);
-  if(selection){[anchor,head]=selection;mark();focus(head)}
+  },at,undefined,selection);
  }
  function render(){
   const j=data(),shelves=ordered(j.notebooks);if(!shelves.some(n=>n.id===bookId))bookId=shelves[0]?.id||"";
   const entries=ordered(j.notes.filter(n=>n.bookId===bookId));if(!entries.some(n=>n.id===pageId)){pageId=entries[0]?.id||"";anchor=head=null}
   drawCards(books,shelves,bookId);drawCards(pages,entries,pageId);pages.add.disabled=!bookId;
   const n=entries.find(n=>n.id===pageId);main.hidden=!n;body.replaceChildren();visible=[];if(!n)return;
-  title.textContent=n.title;
+  main.setAttribute("aria-label",n.title);
   const rows=n.rows.length?n.rows:[textRow()],actions=new Map(j.bullets.filter(b=>!b.deletedAt).map(b=>[b.id,b]));
   let hiddenDepth=Infinity;
   rows.forEach((r,i)=>{
@@ -176,17 +225,12 @@ function create(root,read,write,openAction,fileId=()=>""){
     if(after&&r.collapsed)to=endOfBranch(rows,i);
     moveRows(from,to,after&&parent&&!r.collapsed?r.depth+1:r.depth);
    }
-   draggable(dot,"rows",i,()=>{const [a,b]=range(i);if(anchor===null||i<a||i>b)anchor=head=i;mark()},(from,to)=>{
-    const target=rows[to-1];moveRows(from,target?.collapsed?endOfBranch(rows,to-1):to);
-   });wireDrop(line,"rows",dropRows);
-   line.ondragstart=e=>{
-    if(e.target===dot||anchor===null)return;
-    const [a,b]=range(i);if(i<a||i>b)return;
-    drag={kind:"rows",index:i};e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",r.text);
-   };line.ondragend=stopDrag;
+   function beginRowDrag(){const [a,b]=range(i);if(anchor===null||i<a||i>b)anchor=head=i;mark()}
+   draggable(dot,"rows",i,beginRowDrag);dropActions.set(line,dropRows);
    let field;
    if(r.type==="text"){
     field=el("textarea","tree-text");field.rows=1;field.value=r.text;field.placeholder=rows.length===1?"輸入文字…":"";
+    draggable(field,"rows",i,beginRowDrag,true);
     let beforeInput=null,composition=null;
     field.oncompositionstart=()=>{composition={}};
     field.oncompositionend=()=>{composition=null};
@@ -214,7 +258,7 @@ function create(root,read,write,openAction,fileId=()=>""){
      if(up){const before=visible.filter(v=>v<first).at(-1);if(before!==undefined)moveRows(i,before)}
      else if(last+1<rows.length)moveRows(i,endOfBranch(rows,last+1));return}
     if(key==="Tab"){e.preventDefault();const [first,last]=extent(rows,i),delta=e.shiftKey?-1:1;if(delta<0?!rows[first].depth:!first||rows[first].depth>rows[first-1].depth)return;
-     modify(rs=>{if(delta>0)rs[first-1].collapsed=false;for(let k=first;k<=last;k++)rs[k].depth+=delta},first);return}
+     modify(rs=>{if(delta>0)rs[first-1].collapsed=false;for(let k=first;k<=last;k++)rs[k].depth+=delta},first,undefined,[anchor,head]);return}
     if(key==="PageUp"||key==="PageDown"){e.preventDefault();const dir=key==="PageUp"?-1:1;let dest=i;
      for(let v=idx+dir;v>=0&&v<visible.length;v+=dir){const k=visible[v];if(rows[k].depth<r.depth)break;if(rows[k].depth===r.depth)dest=k}
      anchor=head=null;mark();focus(dest,0);return}
