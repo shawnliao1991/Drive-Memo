@@ -77,9 +77,9 @@ function create(root,read,write,openAction,fileId=()=>"",embedded=null){
    anchor=head=null;
   });editorDialog.showModal();name.focus();name.select();
  }
- function clearMark(){if(marker)marker.classList.remove("drop-above","drop-below");marker=null}
+ function clearMark(){if(marker)marker.classList.remove("drop-above","drop-below","drop-transfer");marker=null}
  function position(target,e){clearMark();const rect=target.getBoundingClientRect(),after=e.clientY>=rect.top+rect.height/2;target.classList.add(after?"drop-below":"drop-above");marker=target;return Number(target.dataset.index)+(after?1:0)}
- function draggable(handle,kind,i,begin){
+ function draggable(handle,kind,i,begin,noteId){
   const selecting=kind==="selection";
   handle.addEventListener("pointerdown",down=>{
    if(down.button!==0||!down.isPrimary)return;
@@ -89,12 +89,23 @@ function create(root,read,write,openAction,fileId=()=>"",embedded=null){
    const source=selecting?rowAt(container,down.clientY):null;
    if(selecting&&!source)return;
    const start=selecting?(down.shiftKey&&anchor!==null?anchor:Number(source.dataset.index)):i;
+   const sourceBook=bookId,sourceFile=fileId();
    const preventNativeDrag=e=>e.preventDefault();
    handle.addEventListener("dragstart",preventNativeDrag,true);
    let moving=false;
    function locate(e){
+    if(!handle.isConnected||fileId()!==sourceFile){clearMark();return null}
+    if(noteId){
+     const shelf=document.elementFromPoint(e.clientX,e.clientY)?.closest("[data-book-id]");
+     if(shelf&&books.list.contains(shelf)){
+      clearMark();const destination=shelf.dataset.bookId;
+      if(destination===sourceBook)return null;
+      marker=shelf;marker.classList.add("drop-transfer");
+      return {move:()=>transferPage(noteId,sourceBook,destination)};
+     }
+    }
     const bounds=container.getBoundingClientRect();
-    if(!handle.isConnected||e.clientX<bounds.left||e.clientX>bounds.right||e.clientY<bounds.top||e.clientY>bounds.bottom){clearMark();return null}
+    if(e.clientX<bounds.left||e.clientX>bounds.right||e.clientY<bounds.top||e.clientY>bounds.bottom){clearMark();return null}
     const target=rowAt(container,e.clientY);if(!target)return null;
     return {move:dropActions.get(target),at:position(target,e)};
    }
@@ -143,6 +154,16 @@ function create(root,read,write,openAction,fileId=()=>"",embedded=null){
   wrap.append(el("h2","",heading),list,add);nav.append(wrap);return {list,add,kind};
  }
  const books=column("books","筆記本"),pages=column("pages","筆記頁");
+ function transferPage(noteId,source,destination){
+  write(j=>{
+   const note=j.notes.find(n=>n.id===noteId&&n.bookId===source);
+   if(!note||!j.notebooks.some(b=>b.id===destination))return;
+   note.order=Math.max(-1,...j.notes.filter(n=>n.bookId===destination).map(n=>n.order))+1;
+   note.bookId=destination;bookId=destination;pageId=noteId;anchor=head=null;
+  });
+  render();
+  pages.list.querySelector('[aria-current="true"]')?.focus();
+ }
  function drawCards(col,records,current){
   const {list,kind}=col,isBook=kind==="books",scroll=list.scrollTop;
   list.replaceChildren();
@@ -153,6 +174,7 @@ function create(root,read,write,openAction,fileId=()=>"",embedded=null){
   }
   records.forEach((r,i)=>{
    const card=el("div","note-card");card.dataset.index=i;card.dataset.drop=kind;
+   if(isBook)card.dataset.bookId=r.id;
    const choose=btn("","note-card-name",()=>{
     if(isBook){if(bookId!==r.id)pageId="";bookId=r.id}else pageId=r.id;
     anchor=head=null;render();if(isBook)books.list.querySelector('[aria-current="true"]')?.focus();else focus(0);
@@ -160,7 +182,7 @@ function create(root,read,write,openAction,fileId=()=>"",embedded=null){
    choose.append(el("span","card-icon",r.icon||(isBook?"▤":"▧")),el("span","card-caption",r.title));choose.title=r.title;choose.style.color=r.color||"";choose.setAttribute("aria-current",String(current===r.id));
    const edit=btn("✎","card-edit",()=>cardDialog(kind,r));edit.setAttribute("aria-label","編輯 "+r.title);
    card.append(choose,edit);list.append(card);dropActions.set(card,reorder);
-   draggable(choose,kind,i,()=>{});
+   draggable(choose,kind,i,()=>{},isBook?undefined:r.id);
   });
   list.scrollTop=scroll;
  }

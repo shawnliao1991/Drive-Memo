@@ -83,6 +83,23 @@ const assert=require("node:assert/strict");
   const books=columns.first().locator(".note-card");
   await dragBefore(books.last().locator(".note-card-name"),books.first());
   assert.equal(await books.first().locator(".card-caption").textContent(),"Second shelf");
+  await columns.nth(1).locator(".note-add").click();
+  await frame.locator(".note-card-dialog input").first().fill("Existing page");
+  await frame.locator(".note-card-dialog").getByRole("button",{name:"儲存",exact:true}).click();
+  await books.last().locator(".note-card-name").click();
+  const moving=pages.last(),movingTitle=await moving.locator(".card-caption").textContent();
+  const noteBox=await moving.locator(".note-card-name").boundingBox(),bookBox=await books.first().boundingBox();
+  const dragAcross=async y=>{
+   await page.mouse.move(noteBox.x+20,noteBox.y+noteBox.height/2);await page.mouse.down();
+   await page.mouse.move(bookBox.x+20,y,{steps:12});
+  };
+  await dragAcross(bookBox.y+bookBox.height/2);
+  assert.match(await books.first().getAttribute("class"),/drop-transfer/);
+  await page.mouse.up();
+  assert.deepEqual(await pages.locator(".card-caption").allTextContents(),["Existing page",movingTitle]);
+  assert.equal(await pages.last().locator(".note-card-name").getAttribute("aria-current"),"true");
+  await books.last().locator(".note-card-name").click();
+  assert(!(await pages.locator(".card-caption").allTextContents()).includes(movingTitle));
   console.log("PASS notebook keyboard, clipboard, empty rows, navigation and migration");
  }finally{await browser.close()}
 })().catch(error=>{console.error(error);process.exitCode=1});

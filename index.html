@@ -232,6 +232,7 @@ main:has(>#notesPage:not(.hidden)){flex:1 1 0;min-height:0;width:100%;box-sizing
 #bulletDialog .action-row-editor .note-tree{max-height:none;min-height:min(55dvh,520px)}
 @media(max-width:420px){#bulletDialog #bulletAction,#bulletDialog #bulletDateButton,#bulletDialog .dialog-top-actions .btn{font-size:12px;padding:4px}#bulletDialog .dialog-head{padding-inline:6px;gap:4px}}
 
+.note-card.drop-transfer{outline:2px solid var(--drop);outline-offset:-2px;background:#324f65}
 .note-selecting,.note-selecting *{user-select:none;cursor:default}
 .note-card-name{cursor:grab!important;user-select:none}.note-dragging,.note-dragging *{cursor:grabbing!important;user-select:none}
 .note-info{border:0;background:transparent;font-size:22px!important;padding:4px 8px}.note-tree{min-height:0;overflow:auto;overscroll-behavior:contain}
@@ -281,7 +282,7 @@ main:has(>#notesPage:not(.hidden)){flex:1 1 0;min-height:0;width:100%;box-sizing
 <script src="./outline.js?v=20261014-3"></script>
 <script src="./journal.js?v=20260927-4"></script>
 <script src="./passwords.js?v=20261122-1"></script>
-<script src="./notes.js?v=20261122-1"></script>
+<script src="./notes.js?v=20261122-2"></script>
 <script src="./ui.js?v=20261122-1"></script>
 <template id="reminderTestTemplate">
 <section class="debug-card reminder-test" aria-labelledby="reminderTestHeading">
