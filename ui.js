@@ -173,15 +173,23 @@ function carrySelected(all=false){const ids=all?[...els.rolloverList.querySelect
 
 function route(){const page=["#notes","#projects"].includes(location.hash)?"notes":location.hash==="#passwords"?"passwords":location.hash==="#contacts"?"contacts":location.hash==="#small-cards"?"smallCards":["#settings","#sync-debug"].includes(location.hash)?"debug":"journal";if(dockSurface&&page!==dockSurface.page){if(!flushEdit(true)){location.hash="#"+dockSurface.page;return}closeBulletDialog()}els.journalPage.classList.toggle("hidden",page!=="journal");els.notesPage.classList.toggle("hidden",page!=="notes");els.passwordsPage.classList.toggle("hidden",page!=="passwords");els.contactsPage.classList.toggle("hidden",page!=="contacts");els.smallCardsPage.classList.toggle("hidden",page!=="smallCards");els.debugPage.classList.toggle("hidden",page!=="debug");els.journalNav.classList.toggle("active",page==="journal");els.notesNav.classList.toggle("active",page==="notes");if(page==="notes")noteEditor.render();els.passwordsNav.classList.toggle("active",page==="passwords");els.contactsNav.classList.toggle("active",page==="contacts");els.smallCardsNav.classList.toggle("active",page==="smallCards");els.debugNav.classList.toggle("active",page==="debug");if(["passwords","contacts","smallCards"].includes(page))passwordTools?.activate()}
 function refreshSyncOverview(){
- const overview=byId("syncOverview"),dot=els.stateDot,shared=byId("sharedSyncStatus");
- const error=dot.classList.contains("err")||shared.classList.contains("err");
- const busy=dot.classList.contains("sync")||shared.classList.contains("sync");
- const ready=dot.classList.contains("ok")&&shared.classList.contains("ok")&&!els.dirtyState.textContent;
- overview.dataset.kind=error?"err":busy?"sync":ready?"ok":"";
- overview.textContent=error?"同步異常":busy?"同步中":ready?"同步正常":els.loginBtn.disabled?"同步待確認":"同步未連線";
+ update("syncOverview","日誌與筆記",els.stateDot,els.fileId.value,Boolean(els.dirtyState.textContent));
+ update("sharedSyncOverview","共用資料",byId("sharedSyncStatus"),byId("passwordFileId").value);
+ function update(id,label,status,fileId,dirty=false){
+  const overview=byId(id),classes=status.classList;
+  let kind="",summary;
+  if(!fileId.trim())summary="未設定";
+  else if(navigator.onLine===false)summary="離線";
+  else if(!els.loginBtn.disabled)summary="未連線";
+  else if(classes.contains("err")){kind="err";summary="異常"}
+  else if(classes.contains("sync")||dirty){kind="sync";summary=classes.contains("sync")?"同步中":"待同步"}
+  else if(classes.contains("ok")){kind="ok";summary="已同步"}
+  else summary="待同步";
+  overview.dataset.kind=kind;overview.textContent=label+" "+summary;
+ }
 }
 function setStatus(text,kind=""){els.statusText.textContent=text;els.stateDot.className=`dot ${kind}`.trim();refreshSyncOverview()}
-function setConnected(connected){els.loginBtn.disabled=connected;els.openBtn.disabled=false;els.syncBtn.disabled=!connected;if(connected)passwordTools?.connected();refreshSyncOverview()}
+function setConnected(connected){els.loginBtn.disabled=connected;els.openBtn.disabled=false;els.syncBtn.disabled=!connected;passwordTools?.connected(connected);refreshSyncOverview()}
 function setIdentity(value){identityValue=value;els.identity.textContent=value}
 function setMeta(meta){const d=new Date(meta?.modifiedTime||""),stamp=Number.isNaN(d.getTime())?"":`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}:${String(d.getSeconds()).padStart(2,"0")}`;els.fileMeta.textContent=meta?.name?meta.name+(stamp?" · "+stamp:""):""}
 function setDirty(dirty){els.dirtyState.textContent=dirty?"有尚未同步的修改":"";refreshSyncOverview()}
@@ -226,6 +234,8 @@ function bindEvents(){
  function positionMobileTools(){const v=global.visualViewport;document.documentElement.style.setProperty("--keyboard-inset",Math.max(0,innerHeight-(v?.height||innerHeight)-(v?.offsetTop||0))+"px")}
  global.visualViewport?.addEventListener("resize",positionMobileTools);global.visualViewport?.addEventListener("scroll",positionMobileTools);positionMobileTools();
  addEventListener("hashchange",route);
+ addEventListener("online",refreshSyncOverview);
+ addEventListener("offline",refreshSyncOverview);
  els.journalPage.addEventListener("click",handleJournalClick);els.rolloverSelectedBtn.addEventListener("click",()=>carrySelected(false));byId("rolloverSelectAll").addEventListener("click",()=>els.rolloverList.querySelectorAll("input").forEach(n=>n.checked=true));byId("rolloverSelectNone").addEventListener("click",()=>els.rolloverList.querySelectorAll("input").forEach(n=>n.checked=false));byId("rolloverDone").addEventListener("click",()=>batchHighlight("done"));byId("rolloverNextWeek").addEventListener("click",()=>batchHighlight("week"));
  els.priorityPicker.addEventListener("click",event=>{const button=event.target.closest("[data-priority]");if(button)setPriority(button.dataset.priority)});els.bulletDateButton.addEventListener("click",()=>toggleDatePicker());els.datePicker.addEventListener("click",event=>{const target=event.target.closest("[data-calendar]");if(!target)return;if(target.dataset.calendar==="previous")shiftCalendarMonth(-1);if(target.dataset.calendar==="next")shiftCalendarMonth(1);if(target.dataset.calendar==="select"){setBulletDate(target.dataset.date);toggleDatePicker(false)}});
  els.bulletDialog.addEventListener("cancel",event=>{event.preventDefault();cancelEdit()});

@@ -7,15 +7,29 @@ const {chromium}=require('playwright'),http=require('node:http'),fs=require('nod
  const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'C:/Program Files/Google/Chrome/Application/chrome.exe'});
  try{
   const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+  await context.addInitScript(()=>localStorage.setItem("driveMemoPasswordFileId","shared"));
   await context.addInitScript(()=>{window.google={accounts:{oauth2:{initTokenClient:()=>({requestAccessToken(){}}),revoke(){}}}};if(!localStorage.getItem('test-seeded')){localStorage.setItem('test-seeded','1');localStorage.setItem('driveMemoFileId','file');sessionStorage.setItem('driveMemoAccessToken','fake');sessionStorage.setItem('driveMemoTokenExpiresAt',String(Date.now()+3600000))}});
+  let sharedReads=0,sharedUnavailable=false;
   await context.route('https://**/*',async route=>{
    const req=route.request();if(!req.url().startsWith('https://www.googleapis.com/'))return route.abort();
+   if(new URL(req.url()).pathname.endsWith("/shared")){
+    if(sharedUnavailable)return route.fulfill({status:503,body:"Unavailable"});
+    const media=req.url().includes("alt=media");if(media)sharedReads++;
+    return route.fulfill({status:200,contentType:"application/json",body:media?"{}":JSON.stringify({id:"shared",name:"shared.json",version:"1"})});
+   }
    if(req.method()==='PATCH'){patches++;cloud=req.postData();version++}
    await route.fulfill({status:200,contentType:req.url().includes('alt=media')?'text/plain':'application/json',body:req.url().includes('alt=media')?cloud:JSON.stringify({id:'file',name:'memo.md',version:String(version)})});
   });
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));const url='http://127.0.0.1:'+server.address().port+'/';await page.goto(url);
   await page.waitForFunction(()=>document.querySelector('#editor').value.includes('Base note'));
   await page.evaluate(()=>navigator.serviceWorker.ready);await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
+  await page.waitForFunction(()=>document.querySelector('#sharedSyncOverview').dataset.kind==='ok');
+  assert(sharedReads>0);
+  sharedUnavailable=true;await page.reload();
+  await page.waitForFunction(()=>document.querySelector('#sharedSyncOverview').dataset.kind==='err'&&document.querySelector('#syncOverview').dataset.kind==='ok');
+  sharedUnavailable=false;await page.reload();
+  await page.waitForFunction(()=>document.querySelector('#sharedSyncOverview').dataset.kind==='ok');
+  assert(sharedReads>=2);
   const buttons=await page.locator('#logoutBtn').boundingBox();assert(buttons.x+buttons.width<=390);
   await context.setOffline(true);
   await page.locator('#agenda .bullet-main').first().click();await page.locator('#actionRowsEditor .tree-text').first().fill('Offline changed note');await page.locator('#bulletDialog .dialog-top-actions button[type=submit]').click();

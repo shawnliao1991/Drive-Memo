@@ -214,7 +214,9 @@ main:has(>#notesPage:not(.hidden)){flex:1 1 0;min-height:0;width:100%;box-sizing
 :lang(zh-Hans){font-family:Arial,"Noto Sans SC","Microsoft YaHei UI",sans-serif}
 :lang(ja){font-family:Arial,"Noto Sans JP","Yu Gothic UI",sans-serif}
 .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-.sync-indicator{margin-left:auto;flex:none;color:#aaa;text-decoration:none;font-size:12px}.sync-indicator[data-kind=ok]{color:#89d185}.sync-indicator[data-kind=err]{color:#f48771}.sync-indicator[data-kind=sync]{color:#9cdcfe}
+.sync-overviews{margin-left:auto;display:flex;gap:8px;flex:none}
+.sync-indicator{flex:none;color:#aaa;text-decoration:none;font-size:12px}.sync-indicator[data-kind=ok]{color:#89d185}.sync-indicator[data-kind=err]{color:#f48771}.sync-indicator[data-kind=sync]{color:#9cdcfe}
+@media(max-width:820px){.topbar:has(.sync-overviews){flex-wrap:wrap}.sync-overviews{order:4;flex-basis:100%;justify-content:flex-end}}
 #debugPage .sync-strip{margin:0;padding:0;max-width:none}#debugPage .sync-source{width:100%}
 #bulletDialog .dialog-head{display:flex;position:relative;align-items:center;gap:6px;padding:8px 10px}
 #bulletDialog #actionField{flex:1 1 10ch;min-width:0}
@@ -243,7 +245,10 @@ main:has(>#notesPage:not(.hidden)){flex:1 1 0;min-height:0;width:100%;box-sizing
 </head>
 <body>
 <header class="topbar"><nav class="nav"><a id="journalNav" href="#journal">日誌</a><a id="notesNav" href="#notes">筆記</a><a id="passwordsNav" href="#passwords">密碼</a><a id="contactsNav" href="#contacts">通訊錄</a><a id="smallCardsNav" href="#small-cards">小卡</a><a id="debugNav" href="#settings">後台</a></nav>
-<a class="sync-indicator" href="#settings" id="syncOverview" aria-live="polite">同步未連線</a>
+<div class="sync-overviews">
+ <a class="sync-indicator" href="#settings" id="syncOverview" aria-live="polite">日誌與筆記 未連線</a>
+ <a class="sync-indicator" href="#settings" id="sharedSyncOverview" aria-live="polite">共用資料 未連線</a>
+</div>
 <span id="identity" class="identity muted"></span><button id="loginBtn" class="btn primary">登入</button><button id="logoutBtn" class="btn">登出</button></header>
 <main>
 <section id="journalPage" class="page">
@@ -281,9 +286,9 @@ main:has(>#notesPage:not(.hidden)){flex:1 1 0;min-height:0;width:100%;box-sizing
 <script src="./sync.js?v=20261121-1"></script>
 <script src="./outline.js?v=20261014-3"></script>
 <script src="./journal.js?v=20260927-4"></script>
-<script src="./passwords.js?v=20261122-1"></script>
+<script src="./passwords.js?v=20261122-3"></script>
 <script src="./notes.js?v=20261122-2"></script>
-<script src="./ui.js?v=20261122-1"></script>
+<script src="./ui.js?v=20261122-3"></script>
 <template id="reminderTestTemplate">
 <section class="debug-card reminder-test" aria-labelledby="reminderTestHeading">
  <h2 id="reminderTestHeading">iPhone 離線提醒測試</h2>
