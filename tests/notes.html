@@ -31,7 +31,15 @@ document.querySelector("iframe").onload=function(){
  check(getBook()[1].rows[1].type==="link","automatic URL row");
  page.querySelectorAll(".note-column")[1].querySelector("button.note-card-name").click();
  page.querySelector(".tree-fold").click();check(fields().length===1,"fold hides descendants");
+ fields()[0].setSelectionRange(0,0);press(fields()[0],"Enter");
+ check(getBook()[0].rows.map(r=>[r.text,r.depth]).join("|")===",0|Parent,0|Child,1","Enter at start inserts a sibling before the branch");
+ check(fields().length===2&&d.activeElement===fields()[1]&&fields()[1].selectionStart===0,"branch remains collapsed and caret stays on parent");
+ press(fields()[1],"z",{ctrlKey:true});
+ fields()[0].setSelectionRange(fields()[0].value.length,fields()[0].value.length);
  press(fields()[0],"Enter");check(getBook()[0].rows[1].depth===1&&fields().length===3,"Enter opens branch and adds child");
+ fields()[0].setSelectionRange(0,0);press(fields()[0],"Enter");
+ check(getBook()[0].rows.map(r=>r.depth).join()==="0,0,1,1"&&fields()[1].value==="Parent","Enter before expanded parent preserves children");
+ press(fields()[1],"z",{ctrlKey:true});
  press(fields()[1],"PageDown");check(d.activeElement===fields()[2],"last sibling");press(fields()[2],"PageUp");check(d.activeElement===fields()[1],"first sibling");
  add(1,"Keyboard");
  type(0,"123");press(fields()[0],"Enter");type(1,"456");press(fields()[1],"Enter");type(2,"789");

@@ -35,7 +35,7 @@ function create(root,read,write,openAction,fileId=()=>"",embedded=null){
  const info=btn("ⓘ","note-info",()=>help.showModal());
  info.setAttribute("aria-label","查看筆記操作說明");info.setAttribute("aria-haspopup","dialog");
  help.setAttribute("aria-label","筆記操作說明");
- for(const hint of ["↑／↓ 直接切換到相鄰可見列。游標靠前時到列首，靠後時到列尾。","Enter 分列；下一列是子列時，會新增同層子列。","列尾按 Delete 或下一列開頭按 Backspace，可合併相鄰文字列。","Tab 增加縮排，Shift＋Tab 減少縮排。","Shift＋↑／↓ 第一次選取目前列，再按延伸選取。Esc 取消選取。","Ctrl＋↑／↓ 或拖曳圓點移動列，已選取的多列會一起移動。","Page Up／Down 跳到同一父節點下的第一列／最後一列。","Alt＋←／→ 或點三角形收合、展開子列。","Ctrl／⌘＋C、X、V 可複製、剪下、貼上選取列。"])list.append(el("li","",hint));
+ for(const hint of ["↑／↓ 直接切換到相鄰可見列。游標靠前時到列首，靠後時到列尾。","列首按 Enter 可在前方插入同階空列；列尾按 Enter 時，若下一列是子列，會新增同階子列。","列尾按 Delete 或下一列開頭按 Backspace，可合併相鄰文字列。","Tab 增加縮排，Shift＋Tab 減少縮排。","Shift＋↑／↓ 第一次選取目前列，再按延伸選取。Esc 取消選取。","Ctrl＋↑／↓ 或拖曳圓點移動列，已選取的多列會一起移動。","Page Up／Down 跳到同一父節點下的第一列／最後一列。","Alt＋←／→ 或點三角形收合、展開子列。","Ctrl／⌘＋C、X、V 可複製、剪下、貼上選取列。"])list.append(el("li","",hint));
  list.append(el("li","","貼上已複製或剪下的列時，將游標放在列首或列尾，分別插在該列之前或之後。"),el("li","","Ctrl＋Z（Mac 為 ⌘＋Z）逐步復原目前筆記頁的文字與列操作。"));
  list.append(el("li","","在正在編輯的文字框拖曳可圈選文字；從其他列或空白處拖曳可選取多列。拖曳列首圓點可移動列或整組選取列。"));
  help.append(el("h2","","筆記操作說明"),list,btn("關閉","btn",()=>help.close()));
@@ -315,7 +315,20 @@ function create(root,read,write,openAction,fileId=()=>"",embedded=null){
     if(e.altKey&&["ArrowRight","ArrowLeft"].includes(key)){e.preventDefault();toggle(key==="ArrowLeft");return}
     if(anchor!==null&&["Backspace","Delete"].includes(key)){e.preventDefault();const last=rows[b].collapsed?endOfBranch(rows,b)-1:b;modify(rs=>rs.splice(a,last-a+1),a,0);return}
     const start=field.selectionStart??0,end=field.selectionEnd??0;
-    if(key==="Enter"&&!e.ctrlKey&&!e.metaKey){e.preventDefault();modify(rs=>{const tail=r.type==="text"?field.value.slice(end):"";if(r.type==="text")rs[i].text=field.value.slice(0,start);rs[i].collapsed=false;rs.splice(i+1,0,textRow(tail,parent?rows[i+1].depth:r.depth))},i+1,0);return}
+    if(key==="Enter"&&!e.ctrlKey&&!e.metaKey){
+     e.preventDefault();
+     if(r.type==="text"&&field.value&&start===0&&end===0){
+      modify(rs=>rs.splice(i,0,textRow("",r.depth)),i+1,0);
+     }else{
+      modify(rs=>{
+       const tail=r.type==="text"?field.value.slice(end):"";
+       if(r.type==="text")rs[i].text=field.value.slice(0,start);
+       rs[i].collapsed=false;
+       rs.splice(i+1,0,textRow(tail,parent?rows[i+1].depth:r.depth));
+      },i+1,0);
+     }
+     return;
+    }
     if(r.type==="text"&&start===end&&((key==="Backspace"&&start===0)||(key==="Delete"&&end===field.value.length))){
      e.preventDefault();const right=key==="Delete"?visible[idx+1]:i,left=key==="Delete"?i:visible[idx-1];
      if(right===undefined)return;
